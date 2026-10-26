@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { LinkItem } from "@/types/profile";
 import {
   Dialog,
@@ -15,70 +14,23 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
+import {
+  linkFormSchema,
+  type LinkFormValues,
+  PRESET_ICONS,
+  PRESET_BADGES,
+  normalizeUrl,
+} from "@/lib/linkValidation";
 
-// 올바른 웹 URL 및 메일주소 검증 정규식
-// 1) http(s)://가 있거나 없는 일반 도메인 (예: github.com, velog.io/@user, https://example.com)
-// 2) localhost 및 포트번호/경로/쿼리/해시 허용
-const URL_REGEX =
-  /^(https?:\/\/)?((([a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,})|localhost)(:\d+)?(\/[^\s]*)?$/i;
-const MAILTO_REGEX =
-  /^mailto:[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/i;
-
-// 1. Zod 검증 스키마 정의
-export const linkFormSchema = z.object({
-  title: z
-    .string()
-    .trim()
-    .min(1, { message: "링크 제목을 입력해주세요." })
-    .max(40, { message: "링크 제목은 최대 40자까지 입력할 수 있어요." }),
-  url: z
-    .string()
-    .trim()
-    .min(1, { message: "연결 URL을 입력해주세요." })
-    .refine(
-      (val) => {
-        const trimmed = val.trim();
-        return URL_REGEX.test(trimmed) || MAILTO_REGEX.test(trimmed);
-      },
-      {
-        message: "올바른 URL 형식(예: github.com)을 입력해주세요.",
-      }
-    ),
-  subtitle: z
-    .string()
-    .max(80, { message: "보조 설명은 최대 80자까지 입력할 수 있어요." }),
-  icon: z
-    .string()
-    .min(1, { message: "아이콘을 입력해주세요." }),
-  badge: z
-    .string()
-    .max(10, { message: "뱃지 문구는 최대 10자까지 가능해요." })
-    .nullable(),
-});
-
-export type LinkFormValues = z.infer<typeof linkFormSchema>;
+// 하위 호환성을 위해 스키마 및 타입 재내보내기
+export { linkFormSchema, type LinkFormValues };
 
 interface AddLinkDialogProps {
   onAddLink: (link: Omit<LinkItem, "id">) => Promise<LinkItem | void> | void;
   onShowToast: (message: string) => void;
   triggerButton?: React.ReactNode;
 }
-
-const PRESET_ICONS = [
-  { icon: "💼", label: "포트폴리오" },
-  { icon: "🐙", label: "GitHub" },
-  { icon: "✍️", label: "블로그" },
-  { icon: "📄", label: "이력서" },
-  { icon: "🌐", label: "웹사이트" },
-  { icon: "📱", label: "SNS" },
-  { icon: "🎨", label: "디자인" },
-  { icon: "💡", label: "프로젝트" },
-  { icon: "☕", label: "커피챗" },
-  { icon: "🔗", label: "기타" },
-];
-
-const PRESET_BADGES = ["추천", "NEW", "HOT"];
 
 export function AddLinkDialog({
   onAddLink,
@@ -120,15 +72,7 @@ export function AddLinkDialog({
   };
 
   const onSubmit = async (values: LinkFormValues) => {
-    // Auto-prepend https:// if protocol is missing
-    let normalizedUrl = values.url.trim();
-    if (
-      !normalizedUrl.startsWith("http://") &&
-      !normalizedUrl.startsWith("https://") &&
-      !normalizedUrl.startsWith("mailto:")
-    ) {
-      normalizedUrl = `https://${normalizedUrl}`;
-    }
+    const normalizedUrl = normalizeUrl(values.url);
 
     try {
       await onAddLink({
@@ -410,7 +354,7 @@ export function AddLinkDialog({
               disabled={isSubmitting}
               className="h-11 px-6 rounded-[14px] text-[14px] font-semibold text-white bg-[#3182f6] hover:bg-[#1b64da] disabled:opacity-50 active:scale-[0.98] shadow-sm transition-all cursor-pointer"
             >
-              {isSubmitting ? "추가 중..." : "추가하기"}
+              {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "추가하기"}
             </Button>
           </DialogFooter>
         </form>

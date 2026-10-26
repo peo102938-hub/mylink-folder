@@ -1,0 +1,9 @@
+feat: 링크 수정/삭제 기능 추가
+
+- 각 링크 카드에 수정(Pencil), 삭제(Trash2) 버튼 항상 표시
+- 인라인 편집 UI 구현 (InlineEditLinkCard) + 동일한 Zod 검증 적용
+- 삭제 확인 모달 구현 (DeleteConfirmDialog)
+- Firestore 연동: updateLinkInFirestore, deleteLinkFromFirestore 추가
+- 실시간 구독(onSnapshot) 제거, 갱신형(getDocs) 방식으로 전환
+- 로딩 텍스트를 Loader2 스피너 아이콘으로 교체
+- 공통 검증 로직을 linkValidation.ts로 분리

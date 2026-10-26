@@ -13,7 +13,7 @@ import { ProfileSkeleton } from "@/components/profile/ProfileSkeleton";
 import { Toast } from "@/components/ui/Toast";
 
 export default function Home() {
-  const { data, isLoading, addLink } = useProfileStorage();
+  const { data, isLoading, addLink, updateLink, deleteLink } = useProfileStorage();
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const showToast = (message: string) => {
@@ -52,10 +52,12 @@ export default function Home() {
             onShowToast={showToast}
           />
 
-          {/* 주요 링크 카드 리스트 (PAGE-05) 및 링크 추가 다이얼로그 */}
+          {/* 주요 링크 카드 리스트 (PAGE-05), 링크 추가, 인라인 수정 및 삭제 */}
           <LinkCardList
             links={data.links}
             onAddLink={addLink}
+            onUpdateLink={updateLink}
+            onDeleteLink={deleteLink}
             onShowToast={showToast}
           />
 

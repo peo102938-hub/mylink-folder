@@ -4,6 +4,9 @@ import {
   query,
   orderBy,
   addDoc,
+  doc,
+  setDoc,
+  deleteDoc,
   serverTimestamp,
   getDocs,
   onSnapshot,
@@ -173,3 +176,34 @@ export function subscribeFirestoreLinks(
     return () => {};
   }
 }
+
+/**
+ * 링크 수정 시 Firestore(users/anonymous/links) 문서 업데이트
+ */
+export async function updateLinkInFirestore(
+  id: string,
+  updatedFields: Partial<LinkItem>
+): Promise<void> {
+  const docRef = doc(db, "users", "anonymous", "links", id);
+  const payload: Record<string, unknown> = {
+    updatedAt: serverTimestamp(),
+  };
+
+  if (updatedFields.title !== undefined) payload.title = updatedFields.title.trim();
+  if (updatedFields.url !== undefined) payload.url = updatedFields.url.trim();
+  if (updatedFields.subtitle !== undefined) payload.subtitle = updatedFields.subtitle.trim();
+  if (updatedFields.icon !== undefined) payload.icon = updatedFields.icon.trim();
+  if (updatedFields.badge !== undefined) payload.badge = updatedFields.badge?.trim() || null;
+  if (updatedFields.isActive !== undefined) payload.isActive = updatedFields.isActive;
+
+  await setDoc(docRef, payload, { merge: true });
+}
+
+/**
+ * 링크 삭제 시 Firestore(users/anonymous/links) 문서 삭제
+ */
+export async function deleteLinkFromFirestore(id: string): Promise<void> {
+  const docRef = doc(db, "users", "anonymous", "links", id);
+  await deleteDoc(docRef);
+}
+
