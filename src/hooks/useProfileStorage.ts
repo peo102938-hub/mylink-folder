@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ProfileData, LinkItem } from "@/types/profile";
 import initialMockProfile from "@/data/mock-profile.json";
+import { addLinkToFirestore, subscribeFirestoreLinks } from "@/lib/firestoreLinks";
 
 export const STORAGE_KEY = "mylink_profile_data";
 
@@ -11,23 +12,60 @@ export function useProfileStorage() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
+    let baseData: ProfileData;
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        const parsed = JSON.parse(stored) as ProfileData;
-        setData(parsed);
+        baseData = JSON.parse(stored) as ProfileData;
       } else {
         // DATA-01: Auto Seed if storage is empty
-        const initialData = initialMockProfile as ProfileData;
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(initialData));
-        setData(initialData);
+        baseData = initialMockProfile as ProfileData;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(baseData));
       }
     } catch (error) {
       console.error("Failed to load profile data from localStorage:", error);
-      setData(initialMockProfile as ProfileData);
-    } finally {
-      setIsLoading(false);
+      baseData = initialMockProfile as ProfileData;
     }
+    setData(baseData);
+    setIsLoading(false);
+
+    // Firestore `users/anonymous/links` 실시간 동기화
+    const unsubscribe = subscribeFirestoreLinks(
+      (firestoreLinks) => {
+        setData((current) => {
+          const profile = current || baseData;
+          if (firestoreLinks.length === 0) {
+            return profile;
+          }
+
+          // Firestore 링크를 상단에 배치하고, 중복되지 않는 기본/로컬 링크들을 보존
+          const firestoreIds = new Set(firestoreLinks.map((item) => item.id));
+          const existingRemainingLinks = (profile.links || []).filter(
+            (item) => !firestoreIds.has(item.id)
+          );
+
+          const updated: ProfileData = {
+            ...profile,
+            links: [...firestoreLinks, ...existingRemainingLinks],
+          };
+
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+          } catch (e) {
+            console.error("Failed to update localStorage:", e);
+          }
+
+          return updated;
+        });
+      },
+      (error) => {
+        console.warn("Could not sync links from Firestore, using local data:", error);
+      }
+    );
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   const updateProfile = (newData: ProfileData) => {
@@ -39,23 +77,32 @@ export function useProfileStorage() {
     }
   };
 
-  const addLink = (newLink: Omit<LinkItem, "id"> | LinkItem) => {
-    if (!data) return;
+  const addLink = async (newLink: Omit<LinkItem, "id"> | LinkItem): Promise<LinkItem> => {
+    try {
+      const createdItem = await addLinkToFirestore(newLink);
 
-    const linkItem: LinkItem =
-      "id" in newLink && newLink.id
-        ? (newLink as LinkItem)
-        : {
-            ...newLink,
-            id: `link_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-          };
+      setData((prev) => {
+        if (!prev) return prev;
+        const remaining = prev.links.filter((l) => l.id !== createdItem.id);
+        const updated: ProfileData = {
+          ...prev,
+          links: [createdItem, ...remaining],
+        };
 
-    const updatedData: ProfileData = {
-      ...data,
-      links: [linkItem, ...data.links],
-    };
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+        } catch (e) {
+          console.error("Failed to update localStorage:", e);
+        }
 
-    updateProfile(updatedData);
+        return updated;
+      });
+
+      return createdItem;
+    } catch (error) {
+      console.error("Failed to add link to Firestore (users/anonymous/links):", error);
+      throw error;
+    }
   };
 
   return {

@@ -60,7 +60,7 @@ export const linkFormSchema = z.object({
 export type LinkFormValues = z.infer<typeof linkFormSchema>;
 
 interface AddLinkDialogProps {
-  onAddLink: (link: Omit<LinkItem, "id">) => void;
+  onAddLink: (link: Omit<LinkItem, "id">) => Promise<LinkItem | void> | void;
   onShowToast: (message: string) => void;
   triggerButton?: React.ReactNode;
 }
@@ -119,7 +119,7 @@ export function AddLinkDialog({
     }
   };
 
-  const onSubmit = (values: LinkFormValues) => {
+  const onSubmit = async (values: LinkFormValues) => {
     // Auto-prepend https:// if protocol is missing
     let normalizedUrl = values.url.trim();
     if (
@@ -130,19 +130,24 @@ export function AddLinkDialog({
       normalizedUrl = `https://${normalizedUrl}`;
     }
 
-    onAddLink({
-      title: values.title.trim(),
-      url: normalizedUrl,
-      subtitle: values.subtitle?.trim() || "",
-      icon: values.icon.trim() || "🔗",
-      badge: values.badge?.trim() || null,
-      isActive: true,
-    });
+    try {
+      await onAddLink({
+        title: values.title.trim(),
+        url: normalizedUrl,
+        subtitle: values.subtitle?.trim() || "",
+        icon: values.icon.trim() || "🔗",
+        badge: values.badge?.trim() || null,
+        isActive: true,
+      });
 
-    onShowToast("새 링크를 추가했어요");
-    setOpen(false);
-    reset();
-    setIsCustomBadge(false);
+      onShowToast("새 링크를 추가했어요");
+      setOpen(false);
+      reset();
+      setIsCustomBadge(false);
+    } catch (error) {
+      console.error("링크 추가 중 오류가 발생했습니다:", error);
+      onShowToast("링크 저장에 실패했습니다. 다시 시도해주세요.");
+    }
   };
 
   return (
@@ -405,7 +410,7 @@ export function AddLinkDialog({
               disabled={isSubmitting}
               className="h-11 px-6 rounded-[14px] text-[14px] font-semibold text-white bg-[#3182f6] hover:bg-[#1b64da] disabled:opacity-50 active:scale-[0.98] shadow-sm transition-all cursor-pointer"
             >
-              추가하기
+              {isSubmitting ? "추가 중..." : "추가하기"}
             </Button>
           </DialogFooter>
         </form>

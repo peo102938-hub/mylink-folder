@@ -8,7 +8,7 @@ import { AddLinkDialog } from "@/components/profile/AddLinkDialog";
 
 interface LinkCardListProps {
   links: LinkItem[];
-  onAddLink?: (link: Omit<LinkItem, "id">) => void;
+  onAddLink?: (link: Omit<LinkItem, "id">) => Promise<LinkItem | void> | void;
   onShowToast?: (message: string) => void;
 }
 
