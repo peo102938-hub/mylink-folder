@@ -3,7 +3,11 @@
 import { useEffect, useState } from "react";
 import { ProfileData, LinkItem } from "@/types/profile";
 import initialMockProfile from "@/data/mock-profile.json";
-import { addLinkToFirestore, subscribeFirestoreLinks } from "@/lib/firestoreLinks";
+import {
+  addLinkToFirestore,
+  getLinksFromFirestore,
+  subscribeFirestoreLinks,
+} from "@/lib/firestoreLinks";
 
 export const STORAGE_KEY = "mylink_profile_data";
 
@@ -12,7 +16,9 @@ export function useProfileStorage() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
+    let isMounted = true;
     let baseData: ProfileData;
+
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
@@ -26,44 +32,71 @@ export function useProfileStorage() {
       console.error("Failed to load profile data from localStorage:", error);
       baseData = initialMockProfile as ProfileData;
     }
-    setData(baseData);
-    setIsLoading(false);
 
-    // Firestore `users/anonymous/links` 실시간 동기화
+    // 초기 로컬 데이터 설정
+    setData(baseData);
+
+    /**
+     * Firestore(users/anonymous/links)에서 createdAt 기준 최신순 정렬 링크 목록을 상태에 반영
+     */
+    const syncFirestoreLinks = (firestoreLinks: LinkItem[]) => {
+      if (!isMounted) return;
+
+      setData((current) => {
+        const profile = current || baseData;
+        // Firestore에 데이터가 존재하면 최신순으로 정렬된 Firestore 링크 목록 적용
+        const nextLinks =
+          firestoreLinks.length > 0 ? firestoreLinks : profile.links;
+
+        const updated: ProfileData = {
+          ...profile,
+          links: nextLinks,
+        };
+
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+        } catch (e) {
+          console.error("Failed to update localStorage:", e);
+        }
+
+        return updated;
+      });
+      setIsLoading(false);
+    };
+
+    // 1. 페이지 로드 시 Firestore(users/anonymous/links)에서 createdAt 최신순으로 1회 로드
+    getLinksFromFirestore()
+      .then((links) => {
+        if (links && links.length > 0) {
+          syncFirestoreLinks(links);
+        } else {
+          if (isMounted) setIsLoading(false);
+        }
+      })
+      .catch((err) => {
+        console.warn(
+          "Failed to load initial links from Firestore, using local fallback:",
+          err
+        );
+        if (isMounted) setIsLoading(false);
+      });
+
+    // 2. Firestore(users/anonymous/links) 실시간 구독 (createdAt 최신순 정렬)
     const unsubscribe = subscribeFirestoreLinks(
       (firestoreLinks) => {
-        setData((current) => {
-          const profile = current || baseData;
-          if (firestoreLinks.length === 0) {
-            return profile;
-          }
-
-          // Firestore 링크를 상단에 배치하고, 중복되지 않는 기본/로컬 링크들을 보존
-          const firestoreIds = new Set(firestoreLinks.map((item) => item.id));
-          const existingRemainingLinks = (profile.links || []).filter(
-            (item) => !firestoreIds.has(item.id)
-          );
-
-          const updated: ProfileData = {
-            ...profile,
-            links: [...firestoreLinks, ...existingRemainingLinks],
-          };
-
-          try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-          } catch (e) {
-            console.error("Failed to update localStorage:", e);
-          }
-
-          return updated;
-        });
+        syncFirestoreLinks(firestoreLinks);
       },
       (error) => {
-        console.warn("Could not sync links from Firestore, using local data:", error);
+        console.warn(
+          "Could not sync links from Firestore, using local data:",
+          error
+        );
+        if (isMounted) setIsLoading(false);
       }
     );
 
     return () => {
+      isMounted = false;
       unsubscribe();
     };
   }, []);
@@ -83,7 +116,7 @@ export function useProfileStorage() {
 
       setData((prev) => {
         if (!prev) return prev;
-        const remaining = prev.links.filter((l) => l.id !== createdItem.id);
+        const remaining = (prev.links || []).filter((l) => l.id !== createdItem.id);
         const updated: ProfileData = {
           ...prev,
           links: [createdItem, ...remaining],
