@@ -28,6 +28,7 @@ export interface FirestoreLinkDoc {
   badge?: string | null;
   isActive?: boolean;
   createdAt?: Timestamp | FieldValue | null;
+  updatedAt?: Timestamp | FieldValue | null;
 }
 
 /**
@@ -53,15 +54,30 @@ function parseFirestoreLinksSnapshot(snapshot: QuerySnapshot<DocumentData>): Lin
   snapshot.forEach((docSnap) => {
     const data = docSnap.data() as FirestoreLinkDoc;
     let createdAtMs = 0;
+    let createdAtStr: string | null = null;
     if (
       data.createdAt &&
       "toMillis" in data.createdAt &&
       typeof data.createdAt.toMillis === "function"
     ) {
       createdAtMs = data.createdAt.toMillis();
+      if ("toDate" in data.createdAt && typeof data.createdAt.toDate === "function") {
+        createdAtStr = (data.createdAt as Timestamp).toDate().toISOString();
+      }
     } else {
       // 로컬 낙관적 업데이트 중(서버 타임스탬프 대기)이거나 타임스탬프 필드가 아직 반영되지 않은 경우 최신으로 처리
       createdAtMs = Date.now();
+    }
+
+    let updatedAtStr: string | null = null;
+    if (
+      data.updatedAt &&
+      "toDate" in data.updatedAt &&
+      typeof data.updatedAt.toDate === "function"
+    ) {
+      updatedAtStr = (data.updatedAt as Timestamp).toDate().toISOString();
+    } else if (typeof data.updatedAt === "string") {
+      updatedAtStr = data.updatedAt;
     }
 
     items.push({
@@ -72,6 +88,8 @@ function parseFirestoreLinksSnapshot(snapshot: QuerySnapshot<DocumentData>): Lin
       icon: data.icon || "🔗",
       badge: data.badge || null,
       isActive: data.isActive !== undefined ? data.isActive : true,
+      createdAt: createdAtStr,
+      updatedAt: updatedAtStr,
       _createdAtMs: createdAtMs,
     });
   });
@@ -98,6 +116,7 @@ export async function addLinkToFirestore(
     badge: newLink.badge?.trim() || null,
     isActive: newLink.isActive !== undefined ? newLink.isActive : true,
     createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
   };
 
   const docRef = await addDoc(linksCol, docPayload);
@@ -110,6 +129,8 @@ export async function addLinkToFirestore(
     icon: docPayload.icon || "🔗",
     badge: docPayload.badge || null,
     isActive: docPayload.isActive ?? true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   };
 }
 

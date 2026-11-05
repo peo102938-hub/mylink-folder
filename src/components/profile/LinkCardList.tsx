@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { LinkItem } from "@/types/profile";
-import { ChevronRight, Plus, Link2, Pencil, Trash2 } from "lucide-react";
+import { ChevronRight, Plus, Link2, Pencil, Trash2, Clock } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { formatUpdatedAt } from "@/lib/utils";
 import { AddLinkDialog } from "@/components/profile/AddLinkDialog";
 import { InlineEditLinkCard } from "@/components/profile/InlineEditLinkCard";
 import { DeleteConfirmDialog } from "@/components/profile/DeleteConfirmDialog";
@@ -135,6 +136,12 @@ export function LinkCardList({
                     {link.subtitle && (
                       <p className="text-[13px] text-[#6b7684] truncate mt-0.5">
                         {link.subtitle}
+                      </p>
+                    )}
+                    {link.updatedAt && (
+                      <p className="text-[11px] text-[#8b95a1] flex items-center gap-1 mt-1">
+                        <Clock className="w-3 h-3 stroke-[2] shrink-0" />
+                        <span>수정: {formatUpdatedAt(link.updatedAt)}</span>
                       </p>
                     )}
                   </div>

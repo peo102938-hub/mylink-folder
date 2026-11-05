@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, Loader2 } from "lucide-react";
+import { formatUpdatedAt } from "@/lib/utils";
 
 interface DeleteConfirmDialogProps {
   isOpen: boolean;
@@ -80,6 +81,11 @@ export function DeleteConfirmDialog({
                 ) : (
                   <p className="text-[12px] text-[#8b95a1] truncate mt-0.5">
                     {link.url}
+                  </p>
+                )}
+                {link.updatedAt && (
+                  <p className="text-[11px] text-[#8b95a1] mt-0.5">
+                    최근 수정: {formatUpdatedAt(link.updatedAt)}
                   </p>
                 )}
               </div>

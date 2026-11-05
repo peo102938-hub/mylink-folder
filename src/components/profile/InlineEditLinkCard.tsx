@@ -14,6 +14,7 @@ import {
   normalizeUrl,
 } from "@/lib/linkValidation";
 import { Loader2, Pencil, X } from "lucide-react";
+import { formatUpdatedAt } from "@/lib/utils";
 
 interface InlineEditLinkCardProps {
   link: LinkItem;
@@ -79,9 +80,16 @@ export function InlineEditLinkCard({
     <Card className="rounded-[20px] border-2 border-[#3182f6] bg-white p-4 sm:p-5 shadow-[0_6px_24px_rgba(49,130,246,0.14)] transition-all">
       {/* 편집 모드 상단 헤더 */}
       <div className="flex items-center justify-between pb-3 mb-3 border-b border-[#f2f4f6]">
-        <div className="flex items-center gap-1.5 text-[#3182f6]">
-          <Pencil className="w-4 h-4 stroke-[2.2]" />
-          <span className="text-[14px] font-bold">링크 수정</span>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5 text-[#3182f6]">
+            <Pencil className="w-4 h-4 stroke-[2.2]" />
+            <span className="text-[14px] font-bold">링크 수정</span>
+          </div>
+          {link.updatedAt && (
+            <span className="text-[11px] text-[#8b95a1] font-normal">
+              (최근 수정: {formatUpdatedAt(link.updatedAt)})
+            </span>
+          )}
         </div>
         <button
           type="button"

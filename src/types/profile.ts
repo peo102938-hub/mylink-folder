@@ -6,6 +6,8 @@ export interface LinkItem {
   icon: string;
   badge?: string | null;
   isActive: boolean;
+  createdAt?: string | null;
+  updatedAt?: string | null;
 }
 
 export interface SocialLink {
