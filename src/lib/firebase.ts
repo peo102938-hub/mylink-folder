@@ -1,6 +1,7 @@
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getAnalytics, isSupported, type Analytics } from "firebase/analytics";
 import { getFirestore, type Firestore } from "firebase/firestore";
+import { getAuth, GoogleAuthProvider, type Auth } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -18,6 +19,13 @@ const app: FirebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebas
 // Initialize Firestore
 const db: Firestore = getFirestore(app);
 
+// Initialize Auth
+const auth: Auth = getAuth(app);
+const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({
+  prompt: "select_account",
+});
+
 // Analytics는 브라우저 환경(SSR 제외) 및 지원 환경에서만 초기화
 let analytics: Analytics | null = null;
 if (typeof window !== "undefined") {
@@ -28,5 +36,5 @@ if (typeof window !== "undefined") {
   });
 }
 
-export { app, db, analytics, firebaseConfig };
+export { app, db, auth, googleProvider, analytics, firebaseConfig };
 export default app;

@@ -17,6 +17,7 @@ export interface SocialLink {
 
 export interface ProfileData {
   displayName: string;
+  username?: string;
   role: string;
   bio: string;
   avatarText?: string;

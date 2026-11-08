@@ -6,6 +6,7 @@ import {
   addDoc,
   doc,
   setDoc,
+  getDoc,
   deleteDoc,
   serverTimestamp,
   getDocs,
@@ -18,8 +19,6 @@ import {
 } from "firebase/firestore";
 import { LinkItem } from "@/types/profile";
 
-export const FIRESTORE_LINKS_PATH = "users/anonymous/links";
-
 export interface FirestoreLinkDoc {
   title: string;
   url: string;
@@ -31,18 +30,85 @@ export interface FirestoreLinkDoc {
   updatedAt?: Timestamp | FieldValue | null;
 }
 
-/**
- * Firestore의 users/anonymous/links 서브컬렉션 참조
- */
-export function getLinksCollection() {
-  return collection(db, "users", "anonymous", "links");
+export interface UserProfileDoc {
+  uid: string;
+  displayName: string;
+  username?: string;
+  email: string;
+  photoURL?: string | null;
+  bio?: string;
+  role?: string;
+  updatedAt?: Timestamp | FieldValue | null;
 }
 
 /**
- * Firestore의 users/anonymous/links 서브컬렉션을 createdAt 기준 최신순(내림차순)으로 정렬하는 쿼리 생성
+ * 이메일 주소에서 @ 앞부분을 추출 (예: peo102938@gmail.com -> peo102938)
  */
-export function getLinksQuery() {
-  return query(getLinksCollection(), orderBy("createdAt", "desc"));
+export function extractEmailPrefix(email?: string | null): string {
+  if (!email) return "user";
+  const prefix = email.split("@")[0]?.trim();
+  return prefix || "user";
+}
+
+/**
+ * users/{uid} 문서 참조
+ */
+export function getUserDocRef(uid: string) {
+  return doc(db, "users", uid);
+}
+
+/**
+ * users/{uid} 문서 조회 (유저 정보)
+ */
+export async function getUserProfile(uid: string): Promise<UserProfileDoc | null> {
+  try {
+    const docSnap = await getDoc(getUserDocRef(uid));
+    if (docSnap.exists()) {
+      return docSnap.data() as UserProfileDoc;
+    }
+    return null;
+  } catch (error) {
+    console.error(`Failed to get user profile for ${uid}:`, error);
+    return null;
+  }
+}
+
+/**
+ * users/{uid} 문서 저장/업데이트
+ */
+export async function saveUserProfile(
+  uid: string,
+  profile: Partial<UserProfileDoc>
+): Promise<void> {
+  try {
+    const docRef = getUserDocRef(uid);
+    await setDoc(
+      docRef,
+      {
+        ...profile,
+        uid,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+  } catch (error) {
+    console.error(`Failed to save user profile for ${uid}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Firestore의 users/{uid}/links 서브컬렉션 참조
+ */
+export function getLinksCollection(uid: string = "anonymous") {
+  return collection(db, "users", uid, "links");
+}
+
+/**
+ * Firestore의 users/{uid}/links 서브컬렉션을 createdAt 기준 최신순(내림차순)으로 정렬하는 쿼리 생성
+ */
+export function getLinksQuery(uid: string = "anonymous") {
+  return query(getLinksCollection(uid), orderBy("createdAt", "desc"));
 }
 
 /**
@@ -101,12 +167,13 @@ function parseFirestoreLinksSnapshot(snapshot: QuerySnapshot<DocumentData>): Lin
 }
 
 /**
- * 링크 추가 시 Firestore(users/anonymous/links)에 저장
+ * 링크 추가 시 Firestore(users/{uid}/links)에 저장
  */
 export async function addLinkToFirestore(
+  uid: string,
   newLink: Omit<LinkItem, "id"> | LinkItem
 ): Promise<LinkItem> {
-  const linksCol = getLinksCollection();
+  const linksCol = getLinksCollection(uid);
 
   const docPayload: FirestoreLinkDoc = {
     title: newLink.title.trim(),
@@ -135,11 +202,11 @@ export async function addLinkToFirestore(
 }
 
 /**
- * Firestore(users/anonymous/links)의 링크 목록을 createdAt 최신순으로 1회 조회
+ * Firestore(users/{uid}/links)의 링크 목록을 createdAt 최신순으로 1회 조회
  */
-export async function getLinksFromFirestore(): Promise<LinkItem[]> {
+export async function getLinksFromFirestore(uid: string = "anonymous"): Promise<LinkItem[]> {
   try {
-    const q = getLinksQuery();
+    const q = getLinksQuery(uid);
     const snapshot = await getDocs(q);
     return parseFirestoreLinksSnapshot(snapshot);
   } catch (error) {
@@ -147,21 +214,22 @@ export async function getLinksFromFirestore(): Promise<LinkItem[]> {
       "getLinksQuery with orderBy failed, falling back to basic collection query:",
       error
     );
-    const linksCol = getLinksCollection();
+    const linksCol = getLinksCollection(uid);
     const snapshot = await getDocs(linksCol);
     return parseFirestoreLinksSnapshot(snapshot);
   }
 }
 
 /**
- * Firestore(users/anonymous/links) 실시간 구독 (createdAt 최신순 정렬)
+ * Firestore(users/{uid}/links) 실시간 구독 (createdAt 최신순 정렬)
  */
 export function subscribeFirestoreLinks(
+  uid: string,
   onUpdate: (links: LinkItem[]) => void,
   onError?: (error: Error) => void
 ): Unsubscribe {
   try {
-    const q = getLinksQuery();
+    const q = getLinksQuery(uid);
 
     return onSnapshot(
       q,
@@ -174,7 +242,7 @@ export function subscribeFirestoreLinks(
           "Firestore onSnapshot query error, falling back to collection listener:",
           error
         );
-        const linksCol = getLinksCollection();
+        const linksCol = getLinksCollection(uid);
         const fallbackUnsubscribe = onSnapshot(
           linksCol,
           (fallbackSnapshot) => {
@@ -199,13 +267,14 @@ export function subscribeFirestoreLinks(
 }
 
 /**
- * 링크 수정 시 Firestore(users/anonymous/links) 문서 업데이트
+ * 링크 수정 시 Firestore(users/{uid}/links) 문서 업데이트
  */
 export async function updateLinkInFirestore(
+  uid: string,
   id: string,
   updatedFields: Partial<LinkItem>
 ): Promise<void> {
-  const docRef = doc(db, "users", "anonymous", "links", id);
+  const docRef = doc(db, "users", uid, "links", id);
   const payload: Record<string, unknown> = {
     updatedAt: serverTimestamp(),
   };
@@ -221,10 +290,9 @@ export async function updateLinkInFirestore(
 }
 
 /**
- * 링크 삭제 시 Firestore(users/anonymous/links) 문서 삭제
+ * 링크 삭제 시 Firestore(users/{uid}/links) 문서 삭제
  */
-export async function deleteLinkFromFirestore(id: string): Promise<void> {
-  const docRef = doc(db, "users", "anonymous", "links", id);
+export async function deleteLinkFromFirestore(uid: string, id: string): Promise<void> {
+  const docRef = doc(db, "users", uid, "links", id);
   await deleteDoc(docRef);
 }
-

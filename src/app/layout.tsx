@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { AuthProvider } from "@/context/AuthContext";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "홍길동 | 토스 스타일 프로필",
-  description: "토스 디자인 시스템(TDS)으로 구성된 간결하고 명확한 프로필 링크",
+  title: "마이링크 | 나만의 프로필 링크",
+  description: "구글 소셜 로그인으로 간편하게 관리하는 나만의 프로필 및 링크",
 };
 
 export default function RootLayout({
@@ -33,7 +34,7 @@ export default function RootLayout({
         />
       </head>
       <body className="antialiased bg-[#f9fafb] text-[#191f28]">
-        {children}
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );

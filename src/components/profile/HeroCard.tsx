@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 
 interface HeroCardProps {
   displayName: string;
+  username?: string;
   role: string;
   bio: string;
   avatarText?: string;
@@ -14,6 +15,7 @@ interface HeroCardProps {
 
 export function HeroCard({
   displayName,
+  username,
   role,
   bio,
   avatarText,
@@ -40,10 +42,15 @@ export function HeroCard({
         )}
 
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
             <h1 className="text-[20px] font-bold text-[#191f28] tracking-tight truncate">
               {displayName}
             </h1>
+            {username && (
+              <span className="text-[14px] font-medium text-[#8b95a1]">
+                ({username})
+              </span>
+            )}
             <CheckCircle2
               className="w-4 h-4 text-[#3182f6] shrink-0"
               aria-label="Verified"
