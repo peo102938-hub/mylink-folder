@@ -3,6 +3,7 @@ import {
   collection,
   query,
   orderBy,
+  where,
   addDoc,
   doc,
   setDoc,
@@ -33,7 +34,7 @@ export interface FirestoreLinkDoc {
 export interface UserProfileDoc {
   uid: string;
   displayName: string;
-  username?: string;
+  username: string;
   email: string;
   photoURL?: string | null;
   bio?: string;
@@ -58,15 +59,121 @@ export function getUserDocRef(uid: string) {
 }
 
 /**
- * users/{uid} 문서 조회 (유저 정보)
+ * users/{uid}/profile/profile 서브컬렉션 문서 참조
+ */
+export function getUserProfileSubDocRef(uid: string) {
+  return doc(db, "users", uid, "profile", "profile");
+}
+
+/**
+ * username 중복 여부 확인
+ * - 본인의 현재 username과 동일하면 통과 (currentUid 또는 currentUsername과 일치)
+ * - 다른 유저가 사용 중이면 false 반환 및 에러 메시지 제공
+ */
+export async function checkUsernameAvailability(
+  username: string,
+  currentUid?: string | null,
+  currentUsername?: string | null
+): Promise<{ available: boolean; message?: string }> {
+  const cleanUsername = username.trim();
+  if (!cleanUsername) {
+    return { available: false, message: "아이디(username)를 입력해주세요." };
+  }
+
+  // 본인의 기존 아이디와 동일하다면 중복 아님
+  if (currentUsername && cleanUsername.toLowerCase() === currentUsername.trim().toLowerCase()) {
+    return { available: true };
+  }
+
+  // 형식 검사: 영문, 숫자, 밑줄, 하이픈, 2~30자
+  const usernameRegex = /^[a-zA-Z0-9._-]+$/;
+  if (!usernameRegex.test(cleanUsername)) {
+    return {
+      available: false,
+      message: "아이디는 영문, 숫자, 특수문자(._-)만 사용할 수 있습니다.",
+    };
+  }
+
+  if (cleanUsername.length < 2 || cleanUsername.length > 30) {
+    return {
+      available: false,
+      message: "아이디는 2자 이상 30자 이하로 입력해주세요.",
+    };
+  }
+
+  try {
+    // 1. usernames 컬렉션(인덱싱/선점용) 확인
+    try {
+      const usernameDocRef = doc(db, "usernames", cleanUsername.toLowerCase());
+      const usernameSnap = await getDoc(usernameDocRef);
+      if (usernameSnap.exists()) {
+        const data = usernameSnap.data();
+        if (data && data.uid && data.uid !== currentUid) {
+          return { available: false, message: "이미 사용 중인 아이디(username)입니다." };
+        }
+      }
+    } catch (e) {
+      console.warn("usernames collection check skipped:", e);
+    }
+
+    // 2. users 컬렉션 전체에서 username 필드 중복 확인
+    try {
+      const usersCol = collection(db, "users");
+      const q = query(usersCol, where("username", "==", cleanUsername));
+      const querySnap = await getDocs(q);
+      for (const docSnap of querySnap.docs) {
+        if (docSnap.id !== currentUid) {
+          return { available: false, message: "이미 사용 중인 아이디(username)입니다." };
+        }
+      }
+    } catch (e) {
+      console.warn("users collection username query skipped:", e);
+    }
+
+    return { available: true };
+  } catch (error) {
+    console.warn("checkUsernameAvailability error:", error);
+    // 조회 권한이 제한되는 경우 차단하지 않고 사용 허용
+    return { available: true };
+  }
+}
+
+/**
+ * users/{uid} 및 users/{uid}/profile 문서 조회 (유저 정보)
  */
 export async function getUserProfile(uid: string): Promise<UserProfileDoc | null> {
   try {
-    const docSnap = await getDoc(getUserDocRef(uid));
-    if (docSnap.exists()) {
-      return docSnap.data() as UserProfileDoc;
+    // 1. users/{uid}/profile/profile 서브문서 조회
+    let subData: Partial<UserProfileDoc> | null = null;
+    try {
+      const subSnap = await getDoc(getUserProfileSubDocRef(uid));
+      if (subSnap.exists()) {
+        subData = subSnap.data() as Partial<UserProfileDoc>;
+      }
+    } catch (e) {
+      console.warn("Failed to fetch sub-profile document:", e);
     }
-    return null;
+
+    // 2. users/{uid} 기본 문서 조회
+    const mainSnap = await getDoc(getUserDocRef(uid));
+    const mainData = mainSnap.exists() ? (mainSnap.data() as Partial<UserProfileDoc> & { profile?: Partial<UserProfileDoc> }) : null;
+
+    if (!mainData && !subData) {
+      return null;
+    }
+
+    const embeddedProfile = (mainData?.profile as Partial<UserProfileDoc>) || {};
+
+    return {
+      uid,
+      displayName: subData?.displayName || embeddedProfile.displayName || mainData?.displayName || "",
+      username: subData?.username || embeddedProfile.username || mainData?.username || "",
+      email: subData?.email || embeddedProfile.email || mainData?.email || mainData?.email || "",
+      photoURL: subData?.photoURL || embeddedProfile.photoURL || mainData?.photoURL || null,
+      bio: subData?.bio !== undefined ? subData.bio : (embeddedProfile.bio !== undefined ? embeddedProfile.bio : mainData?.bio || ""),
+      role: subData?.role || embeddedProfile.role || mainData?.role || "Creator",
+      updatedAt: subData?.updatedAt || mainData?.updatedAt || null,
+    };
   } catch (error) {
     console.error(`Failed to get user profile for ${uid}:`, error);
     return null;
@@ -74,23 +181,101 @@ export async function getUserProfile(uid: string): Promise<UserProfileDoc | null
 }
 
 /**
- * users/{uid} 문서 저장/업데이트
+ * users/{uid}/profile 및 users/{uid} 문서 저장/업데이트
  */
 export async function saveUserProfile(
   uid: string,
   profile: Partial<UserProfileDoc>
 ): Promise<void> {
   try {
+    const cleanUsername = profile.username?.trim();
+    const cleanDisplayName = profile.displayName?.trim();
+    const cleanBio = profile.bio !== undefined ? profile.bio : "";
+
+    const payload = {
+      ...profile,
+      uid,
+      ...(cleanUsername !== undefined ? { username: cleanUsername } : {}),
+      ...(cleanDisplayName !== undefined ? { displayName: cleanDisplayName } : {}),
+      bio: cleanBio,
+      updatedAt: serverTimestamp(),
+    };
+
+    // 1. users/{uid}/profile/profile 서브컬렉션 문서 저장
+    try {
+      const subDocRef = getUserProfileSubDocRef(uid);
+      await setDoc(
+        subDocRef,
+        {
+          uid,
+          ...(cleanUsername !== undefined ? { username: cleanUsername } : {}),
+          ...(cleanDisplayName !== undefined ? { displayName: cleanDisplayName } : {}),
+          bio: cleanBio,
+          role: profile.role || "Creator",
+          photoURL: profile.photoURL || null,
+          email: profile.email || "",
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    } catch (e) {
+      console.warn("Failed to set users/{uid}/profile/profile:", e);
+    }
+
+    // 2. users/{uid}/profile/info 호환 저장
+    try {
+      const subInfoRef = doc(db, "users", uid, "profile", "info");
+      await setDoc(
+        subInfoRef,
+        {
+          uid,
+          username: cleanUsername,
+          displayName: cleanDisplayName,
+          bio: cleanBio,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    } catch (e) {
+      console.warn("Failed to set users/{uid}/profile/info:", e);
+    }
+
+    // 3. users/{uid} 메인 문서 저장 (profile 맵 필드 포함)
     const docRef = getUserDocRef(uid);
     await setDoc(
       docRef,
       {
-        ...profile,
-        uid,
-        updatedAt: serverTimestamp(),
+        ...payload,
+        profile: {
+          username: cleanUsername,
+          displayName: cleanDisplayName,
+          bio: cleanBio,
+          role: profile.role || "Creator",
+          photoURL: profile.photoURL || null,
+          email: profile.email || "",
+          updatedAt: serverTimestamp(),
+        },
       },
       { merge: true }
     );
+
+    // 4. usernames 컬렉션에 username 예약 등록 (중복 방지용)
+    if (cleanUsername) {
+      try {
+        const usernameDocRef = doc(db, "usernames", cleanUsername.toLowerCase());
+        await setDoc(
+          usernameDocRef,
+          {
+            uid,
+            username: cleanUsername,
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+      } catch (err) {
+        console.warn("Failed to record in usernames collection:", err);
+      }
+    }
   } catch (error) {
     console.error(`Failed to save user profile for ${uid}:`, error);
     throw error;

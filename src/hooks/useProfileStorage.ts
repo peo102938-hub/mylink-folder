@@ -58,24 +58,26 @@ export function useProfileStorage() {
       try {
         const remoteProfile = await getUserProfile(user.uid);
 
-        // displayName은 이메일 앞부분(예: peo102938), username은 이름
+        // username은 이메일 앞부분(예: peo102938), displayName은 구글 이름
         const emailPrefix = extractEmailPrefix(user.email);
-        const initialDisplayName = remoteProfile?.displayName || emailPrefix;
-        const initialUsername =
-          remoteProfile?.username || user.displayName || "사용자";
+        const googleDisplayName = user.displayName || "사용자";
+
+        const initialUsername = remoteProfile?.username || emailPrefix;
+        const initialDisplayName = remoteProfile?.displayName || googleDisplayName;
         const initialEmail = remoteProfile?.email || user.email || "";
         const initialAvatarUrl = remoteProfile?.photoURL || user.photoURL || null;
         const initialBio =
-          remoteProfile?.bio ||
-          `${initialUsername}(@${initialDisplayName})님의 개인화된 링크 보관함입니다.`;
-        const initialRole = remoteProfile?.role || "Personal Link Creator";
+          remoteProfile?.bio !== undefined
+            ? remoteProfile.bio
+            : `안녕하세요, ${initialDisplayName}입니다.`;
+        const initialRole = remoteProfile?.role || "Creator";
 
         const baseProfile: ProfileData = {
           displayName: initialDisplayName,
           username: initialUsername,
           role: initialRole,
           bio: initialBio,
-          avatarText: initialDisplayName.slice(0, 1).toUpperCase(),
+          avatarText: (initialDisplayName || initialUsername).slice(0, 1).toUpperCase(),
           avatarUrl: initialAvatarUrl,
           email: initialEmail,
           resumeUrl: null,
@@ -158,7 +160,6 @@ export function useProfileStorage() {
 
   const updateProfile = async (newData: ProfileData) => {
     if (!user) return;
-    setData(newData);
     try {
       await saveUserProfile(user.uid, {
         displayName: newData.displayName,
@@ -168,8 +169,10 @@ export function useProfileStorage() {
         role: newData.role,
         photoURL: newData.avatarUrl,
       });
+      setData(newData);
     } catch (error) {
       console.error("Failed to update profile data in Firestore:", error);
+      throw error;
     }
   };
 

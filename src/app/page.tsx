@@ -35,7 +35,7 @@ export default function Home() {
     <div className="min-h-screen bg-[#f9fafb] text-[#191f28] flex flex-col items-center">
       {/* 1. 상단 고정 앱 바 (프로필 드롭다운 메뉴 포함) */}
       <TopAppBar
-        displayName={data?.displayName ?? (user?.email?.split("@")[0] || "마이링크")}
+        displayName={data?.displayName ?? (user?.displayName || "마이링크")}
         profileData={data}
         onAddLinkClick={() => setIsAddLinkOpen(true)}
         onEditProfileClick={() => setIsEditProfileOpen(true)}
@@ -105,6 +105,7 @@ export default function Home() {
         <EditProfileDialog
           open={isEditProfileOpen}
           onOpenChange={setIsEditProfileOpen}
+          currentUid={user?.uid}
           initialData={{
             displayName: data.displayName,
             username: data.username,

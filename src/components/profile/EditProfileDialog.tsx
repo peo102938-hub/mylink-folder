@@ -10,15 +10,17 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { checkUsernameAvailability } from "@/lib/firestoreLinks";
 
 interface EditProfileDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  currentUid?: string | null;
   initialData: {
     displayName: string;
     username?: string;
-    role: string;
+    role?: string;
     bio: string;
   };
   onSave: (updated: {
@@ -33,6 +35,7 @@ interface EditProfileDialogProps {
 export function EditProfileDialog({
   open,
   onOpenChange,
+  currentUid,
   initialData,
   onSave,
   onShowToast,
@@ -41,7 +44,14 @@ export function EditProfileDialog({
   const [username, setUsername] = useState(initialData.username || "");
   const [role, setRole] = useState(initialData.role || "");
   const [bio, setBio] = useState(initialData.bio || "");
+
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCheckingUsername, setIsCheckingUsername] = useState(false);
+  const [usernameStatus, setUsernameStatus] = useState<{
+    checked: boolean;
+    valid: boolean;
+    message: string;
+  }>({ checked: false, valid: false, message: "" });
 
   useEffect(() => {
     if (open) {
@@ -49,24 +59,105 @@ export function EditProfileDialog({
       setUsername(initialData.username || "");
       setRole(initialData.role || "");
       setBio(initialData.bio || "");
+      setUsernameStatus({ checked: false, valid: false, message: "" });
     }
   }, [open, initialData]);
 
+  // username 변경 시 중복 검사 상태 초기화
+  const handleUsernameChange = (val: string) => {
+    setUsername(val);
+    setUsernameStatus({ checked: false, valid: false, message: "" });
+  };
+
+  // username 수동 중복 확인 버튼
+  const handleCheckDuplicate = async () => {
+    const trimmed = username.trim();
+    if (!trimmed) {
+      setUsernameStatus({
+        checked: true,
+        valid: false,
+        message: "아이디(username)를 입력해주세요.",
+      });
+      return;
+    }
+
+    try {
+      setIsCheckingUsername(true);
+      const res = await checkUsernameAvailability(
+        trimmed,
+        currentUid,
+        initialData.username
+      );
+      if (res.available) {
+        setUsernameStatus({
+          checked: true,
+          valid: true,
+          message: "사용 가능한 아이디입니다.",
+        });
+      } else {
+        setUsernameStatus({
+          checked: true,
+          valid: false,
+          message: res.message || "이미 사용 중인 아이디(username)입니다.",
+        });
+      }
+    } catch {
+      setUsernameStatus({
+        checked: true,
+        valid: true,
+        message: "사용 가능한 아이디입니다.",
+      });
+    } finally {
+      setIsCheckingUsername(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!displayName.trim()) {
-      onShowToast("핸들 아이디를 입력해주세요.");
+
+    const trimmedDisplayName = displayName.trim();
+    const trimmedUsername = username.trim();
+    const trimmedBio = bio.trim();
+
+    if (!trimmedDisplayName) {
+      onShowToast("표시 이름을 입력해주세요.");
+      return;
+    }
+
+    if (!trimmedUsername) {
+      onShowToast("사용자 아이디(username)를 입력해주세요.");
       return;
     }
 
     try {
       setIsSubmitting(true);
+
+      // 1. 저장 전 username 중복 체크 검증
+      const duplicateCheck = await checkUsernameAvailability(
+        trimmedUsername,
+        currentUid,
+        initialData.username
+      );
+
+      if (!duplicateCheck.available) {
+        setUsernameStatus({
+          checked: true,
+          valid: false,
+          message: duplicateCheck.message || "이미 사용 중인 아이디(username)입니다.",
+        });
+        onShowToast(duplicateCheck.message || "이미 사용 중인 아이디입니다.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      // 2. users/{userId}/profile 저장
       await onSave({
-        displayName: displayName.trim(),
-        username: username.trim() || displayName.trim(),
+        displayName: trimmedDisplayName,
+        username: trimmedUsername,
         role: role.trim() || "Creator",
-        bio: bio.trim(),
+        bio: trimmedBio,
       });
+
       onShowToast("프로필 정보를 수정했어요");
       onOpenChange(false);
     } catch (error) {
@@ -83,68 +174,101 @@ export function EditProfileDialog({
         <DialogHeader>
           <DialogTitle>프로필 정보 수정</DialogTitle>
           <DialogDescription>
-            내 프로필 페이지와 링크에 노출될 소개 정보를 수정합니다.
+            내 프로필 페이지와 공유 링크에 노출될 정보를 수정합니다.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 mt-2">
-          {/* 1. 이름 (username) */}
+          {/* 1. 표시 이름 (displayName) */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-[13px] font-semibold text-[#333d4b]">
-              이름 (사용자명)
-            </label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="예: 홍길동"
-              className="w-full h-11 px-3.5 rounded-[14px] border border-[#e5e8eb] bg-[#f9fafb] text-[14px] text-[#191f28] placeholder-[#8b95a1] focus:bg-white focus:border-[#3182f6] focus:outline-none transition-all"
-            />
-          </div>
-
-          {/* 2. 핸들/아이디 (displayName) */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[13px] font-semibold text-[#333d4b]">
-              핸들 아이디 <span className="text-[#f04452]">*</span>
-            </label>
-            <div className="relative flex items-center">
-              <span className="absolute left-3.5 text-[#8b95a1] text-[14px] font-medium">
-                @
-              </span>
-              <input
-                type="text"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="peo102938"
-                required
-                className="w-full h-11 pl-8 pr-3.5 rounded-[14px] border border-[#e5e8eb] bg-[#f9fafb] text-[14px] text-[#191f28] placeholder-[#8b95a1] focus:bg-white focus:border-[#3182f6] focus:outline-none transition-all"
-              />
+            <div className="flex items-center justify-between">
+              <label className="text-[13px] font-semibold text-[#333d4b]">
+                표시 이름 <span className="text-[#f04452]">*</span>
+              </label>
+              <span className="text-[11px] text-[#8b95a1]">기본값: 구글 이름</span>
             </div>
-          </div>
-
-          {/* 3. 직무 / 역할 (role) */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[13px] font-semibold text-[#333d4b]">
-              한 줄 직무 / 소속
-            </label>
             <input
               type="text"
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-              placeholder="예: Frontend Developer, Creator"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder="예: 홍길동"
+              required
               className="w-full h-11 px-3.5 rounded-[14px] border border-[#e5e8eb] bg-[#f9fafb] text-[14px] text-[#191f28] placeholder-[#8b95a1] focus:bg-white focus:border-[#3182f6] focus:outline-none transition-all"
             />
           </div>
 
-          {/* 4. 소개글 (bio) */}
+          {/* 2. 사용자 아이디 (username - 공유 URL용 & 중복 체크) */}
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-[13px] font-semibold text-[#333d4b]">
+                사용자 아이디 (username) <span className="text-[#f04452]">*</span>
+              </label>
+              <span className="text-[11px] text-[#8b95a1]">공유 URL용 / 기본값: 이메일 앞자리</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="relative flex items-center flex-1">
+                <span className="absolute left-3.5 text-[#8b95a1] text-[14px] font-medium select-none">
+                  @
+                </span>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => handleUsernameChange(e.target.value)}
+                  placeholder="peo102938"
+                  required
+                  className={`w-full h-11 pl-8 pr-3.5 rounded-[14px] border ${
+                    usernameStatus.checked && !usernameStatus.valid
+                      ? "border-[#f04452] bg-[#fff5f5]"
+                      : usernameStatus.checked && usernameStatus.valid
+                      ? "border-[#3182f6] bg-[#f0f6ff]"
+                      : "border-[#e5e8eb] bg-[#f9fafb]"
+                  } text-[14px] text-[#191f28] placeholder-[#8b95a1] focus:bg-white focus:border-[#3182f6] focus:outline-none transition-all`}
+                />
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleCheckDuplicate}
+                disabled={isCheckingUsername || !username.trim()}
+                className="h-11 px-3 rounded-[14px] text-[12px] font-semibold text-[#3182f6] border-[#d1e6ff] bg-[#f0f6ff] hover:bg-[#e8f3ff] active:scale-95 transition-all shrink-0 cursor-pointer"
+              >
+                {isCheckingUsername ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  "중복 확인"
+                )}
+              </Button>
+            </div>
+
+            {/* 중복 체크 상태 피드백 메시지 */}
+            {usernameStatus.checked && (
+              <div
+                className={`flex items-center gap-1.5 text-[12px] mt-0.5 ${
+                  usernameStatus.valid ? "text-[#3182f6]" : "text-[#f04452]"
+                }`}
+              >
+                {usernameStatus.valid ? (
+                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                ) : (
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                )}
+                <span>{usernameStatus.message}</span>
+              </div>
+            )}
+          </div>
+
+          {/* 3. 소개글 (bio) */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[13px] font-semibold text-[#333d4b]">
-              자기소개 (Bio)
+              소개글 (bio)
             </label>
             <textarea
               value={bio}
               onChange={(e) => setBio(e.target.value)}
-              placeholder="나를 소개하는 짧은 글을 적어보세요."
+              placeholder="나를 소개하는 소개글을 적어보세요."
               rows={3}
               className="w-full p-3 rounded-[14px] border border-[#e5e8eb] bg-[#f9fafb] text-[14px] text-[#191f28] placeholder-[#8b95a1] focus:bg-white focus:border-[#3182f6] focus:outline-none transition-all resize-none leading-relaxed"
             />

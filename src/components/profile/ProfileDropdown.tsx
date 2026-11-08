@@ -55,8 +55,8 @@ export function ProfileDropdown({
     };
   }, [isOpen]);
 
-  const displayName = profileData?.displayName || user.email?.split("@")[0] || "user";
-  const username = profileData?.username || user.displayName || "사용자";
+  const displayName = profileData?.displayName || user.displayName || "사용자";
+  const username = profileData?.username || user.email?.split("@")[0] || "user";
   const email = profileData?.email || user.email || "";
   const photoUrl = profileData?.avatarUrl || user.photoURL || null;
 
@@ -79,7 +79,7 @@ export function ProfileDropdown({
           <div className="relative w-7 h-7 rounded-full overflow-hidden border border-[#d1d6db] shrink-0">
             <Image
               src={photoUrl}
-              alt={username}
+              alt={displayName}
               fill
               sizes="28px"
               className="object-cover"
@@ -87,7 +87,7 @@ export function ProfileDropdown({
           </div>
         ) : (
           <div className="w-7 h-7 rounded-full bg-[#e8f3ff] text-[#3182f6] text-xs font-bold flex items-center justify-center border border-[#cce4ff] shrink-0">
-            {username.slice(0, 1)}
+            {displayName.slice(0, 1)}
           </div>
         )}
         <span className="text-[13px] font-semibold text-[#333d4b] max-w-[80px] truncate">
@@ -109,7 +109,7 @@ export function ProfileDropdown({
               <div className="relative w-11 h-11 rounded-full overflow-hidden border border-[#e5e8eb] shrink-0">
                 <Image
                   src={photoUrl}
-                  alt={username}
+                  alt={displayName}
                   fill
                   sizes="44px"
                   className="object-cover"
@@ -117,20 +117,20 @@ export function ProfileDropdown({
               </div>
             ) : (
               <div className="w-11 h-11 rounded-full bg-[#e8f3ff] text-[#3182f6] font-bold text-lg flex items-center justify-center shrink-0 border border-[#d1e6ff]">
-                {username.slice(0, 1)}
+                {displayName.slice(0, 1)}
               </div>
             )}
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
                 <span className="text-[15px] font-bold text-[#191f28] truncate">
-                  {username}
+                  {displayName}
                 </span>
                 <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-[#e8f3ff] text-[#3182f6]">
                   구글 연동
                 </span>
               </div>
               <p className="text-[12px] font-medium text-[#4e5968] truncate mt-0.5">
-                @{displayName}
+                @{username}
               </p>
               <p className="text-[11px] text-[#8b95a1] truncate">
                 {email}

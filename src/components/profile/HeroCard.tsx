@@ -48,7 +48,7 @@ export function HeroCard({
             </h1>
             {username && (
               <span className="text-[14px] font-medium text-[#8b95a1]">
-                ({username})
+                (@{username.replace(/^@/, "")})
               </span>
             )}
             <CheckCircle2

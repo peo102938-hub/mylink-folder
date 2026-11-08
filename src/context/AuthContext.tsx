@@ -14,7 +14,7 @@ import {
   signOut,
 } from "firebase/auth";
 import { auth, googleProvider } from "@/lib/firebase";
-import { saveUserProfile, extractEmailPrefix } from "@/lib/firestoreLinks";
+import { saveUserProfile, getUserProfile, extractEmailPrefix } from "@/lib/firestoreLinks";
 
 interface AuthContextType {
   user: User | null;
@@ -38,20 +38,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        // users/{users.uid} 문서에 프로필 정보 동기화:
-        // displayName: 이메일 앞부분(예: peo102938)
-        // username: 실제 이름(예: 홍길동)
+        // 프로필 동기화:
+        // - username: 이메일 앞부분 자동 생성 (기본값)
+        // - displayName: 구글 계정 이름 (기본값)
         try {
           const emailPrefix = extractEmailPrefix(currentUser.email);
-          const originalName = currentUser.displayName || "사용자";
+          const googleDisplayName = currentUser.displayName || "사용자";
 
-          await saveUserProfile(currentUser.uid, {
-            uid: currentUser.uid,
-            displayName: emailPrefix,
-            username: originalName,
-            email: currentUser.email || "",
-            photoURL: currentUser.photoURL || null,
-          });
+          const existingProfile = await getUserProfile(currentUser.uid);
+
+          if (!existingProfile) {
+            // 처음 로그인한 유저: 기본 프로필 생성
+            await saveUserProfile(currentUser.uid, {
+              uid: currentUser.uid,
+              username: emailPrefix,
+              displayName: googleDisplayName,
+              bio: `안녕하세요, ${googleDisplayName}입니다.`,
+              email: currentUser.email || "",
+              photoURL: currentUser.photoURL || null,
+            });
+          } else {
+            // 이미 프로필이 있는 경우: 사용자가 변경한 값을 보존하면서 누락된 필드만 보충
+            await saveUserProfile(currentUser.uid, {
+              uid: currentUser.uid,
+              username: existingProfile.username || emailPrefix,
+              displayName: existingProfile.displayName || googleDisplayName,
+              bio: existingProfile.bio !== undefined ? existingProfile.bio : `안녕하세요, ${existingProfile.displayName || googleDisplayName}입니다.`,
+              email: currentUser.email || existingProfile.email || "",
+              photoURL: currentUser.photoURL || existingProfile.photoURL || null,
+            });
+          }
         } catch (e) {
           console.warn("Failed to sync user profile on auth change:", e);
         }
@@ -68,15 +84,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const loggedInUser = result.user;
       if (loggedInUser) {
         const emailPrefix = extractEmailPrefix(loggedInUser.email);
-        const originalName = loggedInUser.displayName || "사용자";
+        const googleDisplayName = loggedInUser.displayName || "사용자";
 
-        await saveUserProfile(loggedInUser.uid, {
-          uid: loggedInUser.uid,
-          displayName: emailPrefix,
-          username: originalName,
-          email: loggedInUser.email || "",
-          photoURL: loggedInUser.photoURL || null,
-        });
+        const existingProfile = await getUserProfile(loggedInUser.uid);
+        if (!existingProfile) {
+          await saveUserProfile(loggedInUser.uid, {
+            uid: loggedInUser.uid,
+            username: emailPrefix,
+            displayName: googleDisplayName,
+            bio: `안녕하세요, ${googleDisplayName}입니다.`,
+            email: loggedInUser.email || "",
+            photoURL: loggedInUser.photoURL || null,
+          });
+        }
       }
       return loggedInUser;
     } catch (error) {
