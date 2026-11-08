@@ -39,7 +39,24 @@ export interface UserProfileDoc {
   photoURL?: string | null;
   bio?: string;
   role?: string;
-  updatedAt?: Timestamp | FieldValue | null;
+  updatedAt?: Timestamp | FieldValue | string | null;
+}
+
+/**
+ * Firestore Timestamp / FieldValue / Date 객체를 직렬화 가능한 ISO 문자열로 안전하게 변환
+ */
+export function serializeTimestamp(val: unknown): string | null {
+  if (!val) return null;
+  if (typeof val === "string") return val;
+  if (typeof val === "object" && val !== null) {
+    if ("toDate" in val && typeof (val as Timestamp).toDate === "function") {
+      return (val as Timestamp).toDate().toISOString();
+    }
+    if ("seconds" in val && typeof (val as { seconds: number }).seconds === "number") {
+      return new Date((val as { seconds: number }).seconds * 1000).toISOString();
+    }
+  }
+  return null;
 }
 
 /**
@@ -49,6 +66,67 @@ export function extractEmailPrefix(email?: string | null): string {
   if (!email) return "user";
   const prefix = email.split("@")[0]?.trim();
   return prefix || "user";
+}
+
+/**
+ * displayName으로 유저 검색 (users 컬렉션 조회)
+ * - displayName 또는 profile.displayName 일치 유저 검색
+ * - 일치하는 유저의 uid로 전체 프로필 반환
+ */
+export async function getUserByDisplayName(displayName: string): Promise<UserProfileDoc | null> {
+  const cleanName = displayName.trim();
+  if (!cleanName) return null;
+
+  try {
+    const usersCol = collection(db, "users");
+
+    // 1. displayName 필드로 direct query
+    try {
+      const q1 = query(usersCol, where("displayName", "==", cleanName));
+      const snap1 = await getDocs(q1);
+      if (!snap1.empty) {
+        const uid = snap1.docs[0].id;
+        return await getUserProfile(uid);
+      }
+    } catch (e) {
+      console.warn("Direct query by displayName failed:", e);
+    }
+
+    // 2. profile.displayName 필드로 query
+    try {
+      const q2 = query(usersCol, where("profile.displayName", "==", cleanName));
+      const snap2 = await getDocs(q2);
+      if (!snap2.empty) {
+        const uid = snap2.docs[0].id;
+        return await getUserProfile(uid);
+      }
+    } catch (e) {
+      console.warn("Direct query by profile.displayName failed:", e);
+    }
+
+    // 3. users 컬렉션 스캔 (대소문자 무시 매칭)
+    try {
+      const allSnap = await getDocs(usersCol);
+      for (const docSnap of allSnap.docs) {
+        const data = docSnap.data();
+        const docDisplayName = data.displayName || data.profile?.displayName;
+        if (
+          docDisplayName &&
+          typeof docDisplayName === "string" &&
+          docDisplayName.trim().toLowerCase() === cleanName.toLowerCase()
+        ) {
+          return await getUserProfile(docSnap.id);
+        }
+      }
+    } catch (e) {
+      console.warn("Scan users collection failed:", e);
+    }
+
+    return null;
+  } catch (error) {
+    console.error(`getUserByDisplayName failed for ${displayName}:`, error);
+    return null;
+  }
 }
 
 /**
@@ -163,6 +241,7 @@ export async function getUserProfile(uid: string): Promise<UserProfileDoc | null
     }
 
     const embeddedProfile = (mainData?.profile as Partial<UserProfileDoc>) || {};
+    const rawUpdatedAt = subData?.updatedAt || mainData?.updatedAt || null;
 
     return {
       uid,
@@ -172,7 +251,7 @@ export async function getUserProfile(uid: string): Promise<UserProfileDoc | null
       photoURL: subData?.photoURL || embeddedProfile.photoURL || mainData?.photoURL || null,
       bio: subData?.bio !== undefined ? subData.bio : (embeddedProfile.bio !== undefined ? embeddedProfile.bio : mainData?.bio || ""),
       role: subData?.role || embeddedProfile.role || mainData?.role || "Creator",
-      updatedAt: subData?.updatedAt || mainData?.updatedAt || null,
+      updatedAt: serializeTimestamp(rawUpdatedAt),
     };
   } catch (error) {
     console.error(`Failed to get user profile for ${uid}:`, error);

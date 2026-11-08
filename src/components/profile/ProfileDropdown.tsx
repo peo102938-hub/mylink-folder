@@ -2,8 +2,10 @@
 
 import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { User as FirebaseUser } from "firebase/auth";
 import {
+  User,
   Plus,
   Copy,
   Edit3,
@@ -11,6 +13,7 @@ import {
   BarChart2,
   ChevronDown,
   Loader2,
+  ExternalLink,
 } from "lucide-react";
 import { ProfileData } from "@/types/profile";
 
@@ -103,8 +106,13 @@ export function ProfileDropdown({
       {/* 드롭다운 메뉴 팝오버 */}
       {isOpen && (
         <div className="absolute right-0 mt-2 w-80 rounded-[22px] bg-white border border-[#e5e8eb] shadow-[0_12px_40px_rgba(25,31,40,0.12)] p-2 z-50 animate-in fade-in zoom-in-95 duration-150 origin-top-right">
-          {/* 1. 계정 및 사용자 식별 정보 헤더 */}
-          <div className="p-3 bg-[#f9fafb] rounded-[16px] border border-[#f2f4f6] flex items-center gap-3">
+          {/* 1. 계정 및 사용자 식별 정보 헤더 (클릭 시 개인별 페이지로 이동) */}
+          <Link
+            href={`/${encodeURIComponent(displayName)}`}
+            onClick={() => setIsOpen(false)}
+            className="p-3 bg-[#f9fafb] hover:bg-[#f2f4f6] rounded-[16px] border border-[#f2f4f6] flex items-center gap-3 transition-colors cursor-pointer group"
+            title={`${displayName}님의 개인 페이지로 이동`}
+          >
             {photoUrl ? (
               <div className="relative w-11 h-11 rounded-full overflow-hidden border border-[#e5e8eb] shrink-0">
                 <Image
@@ -122,7 +130,7 @@ export function ProfileDropdown({
             )}
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
-                <span className="text-[15px] font-bold text-[#191f28] truncate">
+                <span className="text-[15px] font-bold text-[#191f28] group-hover:text-[#3182f6] transition-colors truncate">
                   {displayName}
                 </span>
                 <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-[#e8f3ff] text-[#3182f6]">
@@ -136,7 +144,8 @@ export function ProfileDropdown({
                 {email}
               </p>
             </div>
-          </div>
+            <ExternalLink className="w-4 h-4 text-[#8b95a1] group-hover:text-[#3182f6] transition-colors shrink-0" />
+          </Link>
 
           {/* 2. 등록된 링크 통계 요약 섹션 */}
           <div className="my-2 p-2.5 rounded-[14px] bg-[#f0f6ff]/70 border border-[#d6e6fe] flex items-center justify-between text-[12px]">
@@ -154,6 +163,19 @@ export function ProfileDropdown({
 
           {/* 3. 편의 액션 메뉴 항목들 */}
           <div className="flex flex-col gap-0.5 py-1">
+            {/* 개인별 페이지 바로가기 */}
+            <Link
+              href={`/${encodeURIComponent(displayName)}`}
+              onClick={() => setIsOpen(false)}
+              className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-[12px] text-[13px] font-semibold text-[#191f28] hover:bg-[#f2f4f6] active:scale-[0.99] transition-all cursor-pointer text-left"
+            >
+              <User className="w-4 h-4 text-[#3182f6]" />
+              <div className="flex items-center justify-between flex-1">
+                <span>내 프로필 페이지</span>
+                <span className="text-[11px] font-medium text-[#8b95a1]">/{displayName}</span>
+              </div>
+            </Link>
+
             {/* 새 링크 추가 */}
             <button
               type="button"

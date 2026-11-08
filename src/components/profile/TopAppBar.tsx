@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Share2, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { Share2, Loader2, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { copyToClipboard } from "@/lib/clipboard";
 import { useAuth } from "@/context/AuthContext";
@@ -71,34 +72,50 @@ export function TopAppBar({
 
   return (
     <header className="sticky top-0 z-30 w-full max-w-lg bg-[#f9fafb]/90 backdrop-blur-md border-b border-[#e5e8eb] px-4 h-14 flex items-center justify-between transition-all">
-      {/* 좌측 로고 / 브랜드 */}
-      <div className="flex items-center gap-2 min-w-0">
+      {/* 좌측 로고 / 홈 이동 링크 */}
+      <Link
+        href="/"
+        className="flex items-center gap-1.5 min-w-0 hover:opacity-80 active:scale-95 transition-all"
+        title="홈으로 이동"
+      >
         <span className="text-[17px] font-bold tracking-tight text-[#191f28] truncate">
-          {user ? displayName : "마이링크"}
+          마이링크
         </span>
-      </div>
+      </Link>
 
-      {/* 우측 액션 버튼들 (프로필 드롭다운 or 구글 로그인 + 공유) */}
+      {/* 우측 액션 버튼들 (개인별 페이지 이동 + 프로필 드롭다운 or 구글 로그인 + 공유) */}
       <div className="flex items-center gap-1.5 shrink-0">
         {loading ? (
           <div className="w-8 h-8 flex items-center justify-center">
             <Loader2 className="w-4 h-4 animate-spin text-[#8b95a1]" />
           </div>
         ) : user ? (
-          /* 로그인 상태: 추천 레이아웃 적용된 프로필 드롭다운 */
-          <ProfileDropdown
-            user={user}
-            profileData={profileData ?? null}
-            onAddLinkClick={() => {
-              if (onAddLinkClick) onAddLinkClick();
-            }}
-            onEditProfileClick={() => {
-              if (onEditProfileClick) onEditProfileClick();
-            }}
-            onCopyLink={handleShare}
-            onLogout={handleLogout}
-            isLoggingOut={isAuthOperating}
-          />
+          <>
+            {/* 개인별 페이지 이동 버튼 */}
+            <Link
+              href={`/${encodeURIComponent(displayName)}`}
+              className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-full text-[12px] font-semibold text-[#3182f6] bg-[#e8f3ff] hover:bg-[#d6e8ff] active:scale-95 transition-all cursor-pointer border border-[#cce4ff]"
+              title={`${displayName}님의 개인 페이지로 이동`}
+            >
+              <User className="w-3.5 h-3.5" />
+              <span>내 페이지</span>
+            </Link>
+
+            {/* 로그인 상태: 추천 레이아웃 적용된 프로필 드롭다운 */}
+            <ProfileDropdown
+              user={user}
+              profileData={profileData ?? null}
+              onAddLinkClick={() => {
+                if (onAddLinkClick) onAddLinkClick();
+              }}
+              onEditProfileClick={() => {
+                if (onEditProfileClick) onEditProfileClick();
+              }}
+              onCopyLink={handleShare}
+              onLogout={handleLogout}
+              isLoggingOut={isAuthOperating}
+            />
+          </>
         ) : (
           /* 비로그인 상태: 구글 로그인 버튼 */
           <Button
