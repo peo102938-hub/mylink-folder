@@ -63,6 +63,9 @@ export function ProfileDropdown({
   const email = profileData?.email || user.email || "";
   const photoUrl = profileData?.avatarUrl || user.photoURL || null;
 
+  // username이 있으면 username 기반 URL 사용 (고유 식별자, 중복 없음)
+  const profileHref = `/${encodeURIComponent(username)}`;
+
   // 통계 계산
   const totalLinks = profileData?.links?.length || 0;
   const activeLinks = profileData?.links?.filter((l) => l.isActive).length || 0;
@@ -108,7 +111,7 @@ export function ProfileDropdown({
         <div className="absolute right-0 mt-2 w-80 rounded-[22px] bg-white border border-[#e5e8eb] shadow-[0_12px_40px_rgba(25,31,40,0.12)] p-2 z-50 animate-in fade-in zoom-in-95 duration-150 origin-top-right">
           {/* 1. 계정 및 사용자 식별 정보 헤더 (클릭 시 개인별 페이지로 이동) */}
           <Link
-            href={`/${encodeURIComponent(displayName)}`}
+            href={profileHref}
             onClick={() => setIsOpen(false)}
             className="p-3 bg-[#f9fafb] hover:bg-[#f2f4f6] rounded-[16px] border border-[#f2f4f6] flex items-center gap-3 transition-colors cursor-pointer group"
             title={`${displayName}님의 개인 페이지로 이동`}
@@ -165,14 +168,14 @@ export function ProfileDropdown({
           <div className="flex flex-col gap-0.5 py-1">
             {/* 개인별 페이지 바로가기 */}
             <Link
-              href={`/${encodeURIComponent(displayName)}`}
+              href={profileHref}
               onClick={() => setIsOpen(false)}
               className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-[12px] text-[13px] font-semibold text-[#191f28] hover:bg-[#f2f4f6] active:scale-[0.99] transition-all cursor-pointer text-left"
             >
               <User className="w-4 h-4 text-[#3182f6]" />
               <div className="flex items-center justify-between flex-1">
                 <span>내 프로필 페이지</span>
-                <span className="text-[11px] font-medium text-[#8b95a1]">/{displayName}</span>
+                <span className="text-[11px] font-medium text-[#8b95a1]">/@{username}</span>
               </div>
             </Link>
 

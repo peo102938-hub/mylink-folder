@@ -72,6 +72,7 @@ export function extractEmailPrefix(email?: string | null): string {
  * displayName으로 유저 검색 (users 컬렉션 조회)
  * - displayName 또는 profile.displayName 일치 유저 검색
  * - 일치하는 유저의 uid로 전체 프로필 반환
+ * @deprecated username 기반 라우팅으로 전환됨. getUserByUsername()을 사용하세요.
  */
 export async function getUserByDisplayName(displayName: string): Promise<UserProfileDoc | null> {
   const cleanName = displayName.trim();
@@ -125,6 +126,61 @@ export async function getUserByDisplayName(displayName: string): Promise<UserPro
     return null;
   } catch (error) {
     console.error(`getUserByDisplayName failed for ${displayName}:`, error);
+    return null;
+  }
+}
+
+/**
+ * username으로 유저 검색 (고유 식별자 기반 조회)
+ * - usernames/{username} 컬렉션으로 O(1) uid 조회 (인덱스 활용)
+ * - 없으면 users 컬렉션 username 필드로 fallback 쿼리
+ */
+export async function getUserByUsername(username: string): Promise<UserProfileDoc | null> {
+  const cleanUsername = username.trim().toLowerCase();
+  if (!cleanUsername) return null;
+
+  try {
+    // 1. usernames 선점 컬렉션으로 uid 조회 (O(1), 인덱스 활용)
+    try {
+      const usernameDocRef = doc(db, "usernames", cleanUsername);
+      const usernameSnap = await getDoc(usernameDocRef);
+      if (usernameSnap.exists()) {
+        const data = usernameSnap.data();
+        if (data?.uid) {
+          return await getUserProfile(data.uid);
+        }
+      }
+    } catch (e) {
+      console.warn("getUserByUsername: usernames collection lookup failed:", e);
+    }
+
+    // 2. users 컬렉션 username 필드 쿼리 (fallback)
+    try {
+      const usersCol = collection(db, "users");
+      const q = query(usersCol, where("username", "==", cleanUsername));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        return await getUserProfile(snap.docs[0].id);
+      }
+    } catch (e) {
+      console.warn("getUserByUsername: users collection query failed:", e);
+    }
+
+    // 3. profile.username 필드 쿼리 (fallback)
+    try {
+      const usersCol = collection(db, "users");
+      const q = query(usersCol, where("profile.username", "==", cleanUsername));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        return await getUserProfile(snap.docs[0].id);
+      }
+    } catch (e) {
+      console.warn("getUserByUsername: profile.username query failed:", e);
+    }
+
+    return null;
+  } catch (error) {
+    console.error(`getUserByUsername failed for ${username}:`, error);
     return null;
   }
 }

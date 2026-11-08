@@ -1,4 +1,4 @@
-import { getUserByDisplayName, getLinksFromFirestore } from "@/lib/firestoreLinks";
+import { getUserByUsername, getLinksFromFirestore } from "@/lib/firestoreLinks";
 import { notFound } from "next/navigation";
 import { UserProfileClientView } from "./UserProfileClientView";
 
@@ -6,16 +6,16 @@ export const dynamic = "force-dynamic";
 
 interface PageProps {
   params: Promise<{
-    displayName: string;
+    username: string;
   }>;
 }
 
 export default async function UserProfilePage({ params }: PageProps) {
-  const { displayName } = await params;
-  const decodedDisplayName = decodeURIComponent(displayName);
+  const { username } = await params;
+  const decodedUsername = decodeURIComponent(username);
 
-  // 1. displayName으로 유저 검색
-  const userProfile = await getUserByDisplayName(decodedDisplayName);
+  // 1. username으로 유저 검색 (고유 식별자 기반, 중복 없음)
+  const userProfile = await getUserByUsername(decodedUsername);
 
   // 2. 유저가 없거나 username이 없으면 404 페이지
   if (!userProfile || !userProfile.username || !userProfile.username.trim()) {

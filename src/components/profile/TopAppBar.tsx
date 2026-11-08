@@ -24,6 +24,8 @@ export function TopAppBar({
   onEditProfileClick,
   onShowToast,
 }: TopAppBarProps) {
+  // username이 있으면 username 기반 URL, 없으면 displayName 기반으로 fallback
+  const profileUsername = profileData?.username || null;
   const { user, loading, signInWithGoogle, logout } = useAuth();
   const [isAuthOperating, setIsAuthOperating] = useState(false);
 
@@ -93,7 +95,7 @@ export function TopAppBar({
           <>
             {/* 개인별 페이지 이동 버튼 */}
             <Link
-              href={`/${encodeURIComponent(displayName)}`}
+              href={`/${encodeURIComponent(profileUsername ?? displayName)}`}
               className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-full text-[12px] font-semibold text-[#3182f6] bg-[#e8f3ff] hover:bg-[#d6e8ff] active:scale-95 transition-all cursor-pointer border border-[#cce4ff]"
               title={`${displayName}님의 개인 페이지로 이동`}
             >
