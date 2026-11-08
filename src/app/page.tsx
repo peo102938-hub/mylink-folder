@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Database, ShieldCheck, User as UserIcon } from "lucide-react";
 import { useProfileStorage } from "@/hooks/useProfileStorage";
 import { TopAppBar } from "@/components/profile/TopAppBar";
 import { HeroCard } from "@/components/profile/HeroCard";
@@ -12,11 +11,18 @@ import { SocialBar } from "@/components/profile/SocialBar";
 import { Footer } from "@/components/profile/Footer";
 import { ProfileSkeleton } from "@/components/profile/ProfileSkeleton";
 import { LoginRequiredView } from "@/components/profile/LoginRequiredView";
+import { EditProfileDialog } from "@/components/profile/EditProfileDialog";
+import { AddLinkDialog } from "@/components/profile/AddLinkDialog";
 import { Toast } from "@/components/ui/Toast";
 
 export default function Home() {
-  const { user, data, isLoading, addLink, updateLink, deleteLink } = useProfileStorage();
+  const { user, data, isLoading, updateProfile, addLink, updateLink, deleteLink } =
+    useProfileStorage();
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // 헤더 드롭다운 및 외부 액션용 다이얼로그 상태
+  const [isAddLinkOpen, setIsAddLinkOpen] = useState(false);
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
 
   const showToast = (message: string) => {
     setToastMessage(message);
@@ -27,9 +33,12 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-[#f9fafb] text-[#191f28] flex flex-col items-center">
-      {/* 1. 상단 고정 앱 바 (구글 소셜 로그인 및 공유 버튼 포함) */}
+      {/* 1. 상단 고정 앱 바 (프로필 드롭다운 메뉴 포함) */}
       <TopAppBar
-        displayName={data?.displayName ?? (user?.displayName || "마이링크")}
+        displayName={data?.displayName ?? (user?.email?.split("@")[0] || "마이링크")}
+        profileData={data}
+        onAddLinkClick={() => setIsAddLinkOpen(true)}
+        onEditProfileClick={() => setIsEditProfileOpen(true)}
         onShowToast={showToast}
       />
 
@@ -45,23 +54,6 @@ export default function Home() {
       ) : data ? (
         /* 로그인 상태 화면: users/{users.uid}/links 개인화 데이터 및 유저 정보 */
         <main className="w-full max-w-lg px-5 pt-6 pb-12 flex flex-col gap-4">
-          {/* Firestore 개인화 경로 및 유저 계정 상태 안내 카드 */}
-          <div className="rounded-[18px] bg-[#f0f6ff] border border-[#d1e6ff] px-4 py-3 flex items-center justify-between gap-3 text-[13px] text-[#1b64da]">
-            <div className="flex items-center gap-2 min-w-0">
-              <Database className="w-4 h-4 shrink-0 text-[#3182f6]" />
-              <div className="truncate">
-                <span className="font-semibold">저장 경로: </span>
-                <span className="font-mono text-[12px] bg-white/80 px-1.5 py-0.5 rounded border border-[#c5ddff] text-[#1b64da]">
-                  users/{user.uid}/links
-                </span>
-              </div>
-            </div>
-            <div className="flex items-center gap-1 shrink-0 text-[12px] text-[#4e5968] bg-white/70 px-2 py-0.5 rounded-full border border-[#dbe9ff]">
-              <ShieldCheck className="w-3.5 h-3.5 text-[#00b06b]" />
-              <span>개인화 활성화</span>
-            </div>
-          </div>
-
           {/* 프로필 히어로 카드 (로그인된 유저 정보 표시) */}
           <HeroCard
             displayName={data.displayName}
@@ -98,6 +90,39 @@ export default function Home() {
           <Footer />
         </main>
       ) : null}
+
+      {/* 헤더 드롭다운에서 트리거되는 링크 추가 모달 */}
+      <AddLinkDialog
+        isOpen={isAddLinkOpen}
+        onOpenChange={setIsAddLinkOpen}
+        triggerButton={null}
+        onAddLink={addLink}
+        onShowToast={showToast}
+      />
+
+      {/* 헤더 드롭다운에서 트리거되는 프로필 정보 수정 모달 */}
+      {data && (
+        <EditProfileDialog
+          open={isEditProfileOpen}
+          onOpenChange={setIsEditProfileOpen}
+          initialData={{
+            displayName: data.displayName,
+            username: data.username,
+            role: data.role,
+            bio: data.bio,
+          }}
+          onSave={async (updated) => {
+            await updateProfile({
+              ...data,
+              displayName: updated.displayName,
+              username: updated.username,
+              role: updated.role,
+              bio: updated.bio,
+            });
+          }}
+          onShowToast={showToast}
+        />
+      )}
 
       {/* 하단 토스트 알림 */}
       <Toast message={toastMessage} />

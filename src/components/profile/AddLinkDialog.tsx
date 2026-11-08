@@ -30,14 +30,20 @@ interface AddLinkDialogProps {
   onAddLink: (link: Omit<LinkItem, "id">) => Promise<LinkItem | void> | void;
   onShowToast: (message: string) => void;
   triggerButton?: React.ReactNode;
+  isOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export function AddLinkDialog({
   onAddLink,
   onShowToast,
   triggerButton,
+  isOpen: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
 }: AddLinkDialogProps) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
   const [isCustomBadge, setIsCustomBadge] = useState(false);
 
   // 2. React Hook Form 연동 (Zod Resolver 사용)
@@ -64,7 +70,11 @@ export function AddLinkDialog({
   const currentBadge = watch("badge");
 
   const handleOpenChange = (nextOpen: boolean) => {
-    setOpen(nextOpen);
+    if (isControlled && controlledOnOpenChange) {
+      controlledOnOpenChange(nextOpen);
+    } else {
+      setInternalOpen(nextOpen);
+    }
     if (!nextOpen) {
       reset();
       setIsCustomBadge(false);
@@ -85,9 +95,7 @@ export function AddLinkDialog({
       });
 
       onShowToast("새 링크를 추가했어요");
-      setOpen(false);
-      reset();
-      setIsCustomBadge(false);
+      handleOpenChange(false);
     } catch (error) {
       console.error("링크 추가 중 오류가 발생했습니다:", error);
       onShowToast("링크 저장에 실패했습니다. 다시 시도해주세요.");
@@ -96,22 +104,24 @@ export function AddLinkDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger
-        render={
-          triggerButton ? (
-            <>{triggerButton}</>
-          ) : (
-            <button
-              type="button"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-semibold text-[#3182f6] bg-[#e8f3ff] hover:bg-[#d5e8ff] active:scale-95 transition-all cursor-pointer"
-              aria-label="새 링크 추가하기"
-            >
-              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-              <span>링크 추가</span>
-            </button>
-          )
-        }
-      />
+      {triggerButton !== null && (
+        <DialogTrigger
+          render={
+            triggerButton ? (
+              <>{triggerButton}</>
+            ) : (
+              <button
+                type="button"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-semibold text-[#3182f6] bg-[#e8f3ff] hover:bg-[#d5e8ff] active:scale-95 transition-all cursor-pointer"
+                aria-label="새 링크 추가하기"
+              >
+                <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                <span>링크 추가</span>
+              </button>
+            )
+          }
+        />
+      )}
 
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>

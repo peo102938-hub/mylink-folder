@@ -107,7 +107,7 @@ export function LoginRequiredView({ onShowToast }: LoginRequiredViewProps) {
               나만의 안전한 클라우드 저장소
             </h3>
             <p className="text-[13px] text-[#6b7684] mt-0.5 leading-relaxed">
-              모든 링크는 Firestore의 <code className="text-[#3182f6] bg-[#f0f6ff] px-1.5 py-0.5 rounded text-[12px] font-mono">users/{`{uid}`}/links</code> 경로에 안전하게 격리되어 저장됩니다.
+              모든 링크와 프로필은 로그인한 계정의 안전한 개인 클라우드에 독립적으로 보관됩니다.
             </p>
           </div>
         </div>

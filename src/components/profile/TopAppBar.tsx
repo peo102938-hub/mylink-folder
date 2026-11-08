@@ -1,18 +1,28 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
-import { Share2, LogIn, LogOut, Loader2 } from "lucide-react";
+import { Share2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { copyToClipboard } from "@/lib/clipboard";
 import { useAuth } from "@/context/AuthContext";
+import { ProfileDropdown } from "./ProfileDropdown";
+import { ProfileData } from "@/types/profile";
 
 interface TopAppBarProps {
   displayName: string;
+  profileData?: ProfileData | null;
+  onAddLinkClick?: () => void;
+  onEditProfileClick?: () => void;
   onShowToast: (message: string) => void;
 }
 
-export function TopAppBar({ displayName, onShowToast }: TopAppBarProps) {
+export function TopAppBar({
+  displayName,
+  profileData,
+  onAddLinkClick,
+  onEditProfileClick,
+  onShowToast,
+}: TopAppBarProps) {
   const { user, loading, signInWithGoogle, logout } = useAuth();
   const [isAuthOperating, setIsAuthOperating] = useState(false);
 
@@ -36,7 +46,6 @@ export function TopAppBar({ displayName, onShowToast }: TopAppBarProps) {
       }
     } catch (error: unknown) {
       console.error("Login failed:", error);
-      // 취소(auth/popup-closed-by-user)가 아닌 경우에만 토스트 노출
       const firebaseError = error as { code?: string };
       if (firebaseError?.code !== "auth/popup-closed-by-user") {
         onShowToast("로그인에 실패했습니다. 다시 시도해주세요.");
@@ -62,57 +71,34 @@ export function TopAppBar({ displayName, onShowToast }: TopAppBarProps) {
 
   return (
     <header className="sticky top-0 z-30 w-full max-w-lg bg-[#f9fafb]/90 backdrop-blur-md border-b border-[#e5e8eb] px-4 h-14 flex items-center justify-between transition-all">
-      {/* 좌측 로고 / 브랜드 / 사용자 명칭 */}
+      {/* 좌측 로고 / 브랜드 */}
       <div className="flex items-center gap-2 min-w-0">
         <span className="text-[17px] font-bold tracking-tight text-[#191f28] truncate">
           {user ? displayName : "마이링크"}
         </span>
       </div>
 
-      {/* 우측 액션 버튼들 (소셜 로그인 + 공유) */}
+      {/* 우측 액션 버튼들 (프로필 드롭다운 or 구글 로그인 + 공유) */}
       <div className="flex items-center gap-1.5 shrink-0">
         {loading ? (
           <div className="w-8 h-8 flex items-center justify-center">
             <Loader2 className="w-4 h-4 animate-spin text-[#8b95a1]" />
           </div>
         ) : user ? (
-          /* 로그인 상태 */
-          <div className="flex items-center gap-2">
-            {/* 프로필 미니 아바타 */}
-            {user.photoURL ? (
-              <div className="relative w-7 h-7 rounded-full overflow-hidden border border-[#d1d6db]">
-                <Image
-                  src={user.photoURL}
-                  alt={user.displayName || "유저 프로필"}
-                  fill
-                  sizes="28px"
-                  className="object-cover"
-                />
-              </div>
-            ) : (
-              <div className="w-7 h-7 rounded-full bg-[#e8f3ff] text-[#3182f6] text-xs font-bold flex items-center justify-center border border-[#cce4ff]">
-                {(user.displayName || "U").slice(0, 1)}
-              </div>
-            )}
-
-            {/* 로그아웃 버튼 */}
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={isAuthOperating}
-              onClick={handleLogout}
-              className="rounded-full text-[13px] font-medium text-[#6b7684] hover:text-[#e94a4a] hover:bg-[#fff0f0] transition-colors cursor-pointer h-8 px-2.5 flex items-center gap-1"
-              title="로그아웃"
-            >
-              {isAuthOperating ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <LogOut className="w-3.5 h-3.5" />
-              )}
-              <span className="text-[12px]">로그아웃</span>
-            </Button>
-          </div>
+          /* 로그인 상태: 추천 레이아웃 적용된 프로필 드롭다운 */
+          <ProfileDropdown
+            user={user}
+            profileData={profileData ?? null}
+            onAddLinkClick={() => {
+              if (onAddLinkClick) onAddLinkClick();
+            }}
+            onEditProfileClick={() => {
+              if (onEditProfileClick) onEditProfileClick();
+            }}
+            onCopyLink={handleShare}
+            onLogout={handleLogout}
+            isLoggingOut={isAuthOperating}
+          />
         ) : (
           /* 비로그인 상태: 구글 로그인 버튼 */
           <Button
@@ -126,7 +112,6 @@ export function TopAppBar({ displayName, onShowToast }: TopAppBarProps) {
             {isAuthOperating ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin text-[#3182f6]" />
             ) : (
-              /* Google G 로고 SVG */
               <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
                 <path
                   fill="#4285F4"
