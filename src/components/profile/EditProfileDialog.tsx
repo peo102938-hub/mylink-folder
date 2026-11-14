@@ -10,8 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
-import { checkUsernameAvailability } from "@/lib/firestoreLinks";
+import { Loader2, Lock } from "lucide-react";
 
 interface EditProfileDialogProps {
   open: boolean;
@@ -35,88 +34,30 @@ interface EditProfileDialogProps {
 export function EditProfileDialog({
   open,
   onOpenChange,
-  currentUid,
   initialData,
   onSave,
   onShowToast,
 }: EditProfileDialogProps) {
   const [displayName, setDisplayName] = useState(initialData.displayName || "");
-  const [username, setUsername] = useState(initialData.username || "");
   const [role, setRole] = useState(initialData.role || "");
   const [bio, setBio] = useState(initialData.bio || "");
-
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isCheckingUsername, setIsCheckingUsername] = useState(false);
-  const [usernameStatus, setUsernameStatus] = useState<{
-    checked: boolean;
-    valid: boolean;
-    message: string;
-  }>({ checked: false, valid: false, message: "" });
+
+  // 사용자 아이디(username)는 고유 식별자로서 수정 불가
+  const username = initialData.username || "";
 
   useEffect(() => {
     if (open) {
       setDisplayName(initialData.displayName || "");
-      setUsername(initialData.username || "");
       setRole(initialData.role || "");
       setBio(initialData.bio || "");
-      setUsernameStatus({ checked: false, valid: false, message: "" });
     }
   }, [open, initialData]);
-
-  // username 변경 시 중복 검사 상태 초기화
-  const handleUsernameChange = (val: string) => {
-    setUsername(val);
-    setUsernameStatus({ checked: false, valid: false, message: "" });
-  };
-
-  // username 수동 중복 확인 버튼
-  const handleCheckDuplicate = async () => {
-    const trimmed = username.trim();
-    if (!trimmed) {
-      setUsernameStatus({
-        checked: true,
-        valid: false,
-        message: "아이디(username)를 입력해주세요.",
-      });
-      return;
-    }
-
-    try {
-      setIsCheckingUsername(true);
-      const res = await checkUsernameAvailability(
-        trimmed,
-        currentUid,
-        initialData.username
-      );
-      if (res.available) {
-        setUsernameStatus({
-          checked: true,
-          valid: true,
-          message: "사용 가능한 아이디입니다.",
-        });
-      } else {
-        setUsernameStatus({
-          checked: true,
-          valid: false,
-          message: res.message || "이미 사용 중인 아이디(username)입니다.",
-        });
-      }
-    } catch {
-      setUsernameStatus({
-        checked: true,
-        valid: true,
-        message: "사용 가능한 아이디입니다.",
-      });
-    } finally {
-      setIsCheckingUsername(false);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const trimmedDisplayName = displayName.trim();
-    const trimmedUsername = username.trim();
     const trimmedBio = bio.trim();
 
     if (!trimmedDisplayName) {
@@ -124,36 +65,13 @@ export function EditProfileDialog({
       return;
     }
 
-    if (!trimmedUsername) {
-      onShowToast("사용자 아이디(username)를 입력해주세요.");
-      return;
-    }
-
     try {
       setIsSubmitting(true);
 
-      // 1. 저장 전 username 중복 체크 검증
-      const duplicateCheck = await checkUsernameAvailability(
-        trimmedUsername,
-        currentUid,
-        initialData.username
-      );
-
-      if (!duplicateCheck.available) {
-        setUsernameStatus({
-          checked: true,
-          valid: false,
-          message: duplicateCheck.message || "이미 사용 중인 아이디(username)입니다.",
-        });
-        onShowToast(duplicateCheck.message || "이미 사용 중인 아이디입니다.");
-        setIsSubmitting(false);
-        return;
-      }
-
-      // 2. users/{userId}/profile 저장
+      // users/{userId}/profile 저장 (username은 기존 고유값 유지)
       await onSave({
         displayName: trimmedDisplayName,
-        username: trimmedUsername,
+        username,
         role: role.trim() || "Creator",
         bio: trimmedBio,
       });
@@ -197,67 +115,34 @@ export function EditProfileDialog({
             />
           </div>
 
-          {/* 2. 사용자 아이디 (username - 공유 URL용 & 중복 체크) */}
+          {/* 2. 사용자 아이디 (username - 고유 식별자, 수정 불가) */}
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
-              <label className="text-[13px] font-semibold text-[#333d4b]">
-                사용자 아이디 (username) <span className="text-[#f04452]">*</span>
-              </label>
-              <span className="text-[11px] text-[#8b95a1]">공유 URL용 / 기본값: 이메일 앞자리</span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <div className="relative flex items-center flex-1">
-                <span className="absolute left-3.5 text-[#8b95a1] text-[14px] font-medium select-none">
-                  @
+              <label className="text-[13px] font-semibold text-[#333d4b] flex items-center gap-1.5">
+                <span>사용자 아이디 (username)</span>
+                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#8b95a1] bg-[#f2f4f6] px-1.5 py-0.5 rounded-[5px]">
+                  <Lock className="w-3 h-3 text-[#8b95a1]" />
+                  수정 불가
                 </span>
-                <input
-                  type="text"
-                  value={username}
-                  onChange={(e) => handleUsernameChange(e.target.value)}
-                  placeholder="peo102938"
-                  required
-                  className={`w-full h-11 pl-8 pr-3.5 rounded-[14px] border ${
-                    usernameStatus.checked && !usernameStatus.valid
-                      ? "border-[#f04452] bg-[#fff5f5]"
-                      : usernameStatus.checked && usernameStatus.valid
-                      ? "border-[#3182f6] bg-[#f0f6ff]"
-                      : "border-[#e5e8eb] bg-[#f9fafb]"
-                  } text-[14px] text-[#191f28] placeholder-[#8b95a1] focus:bg-white focus:border-[#3182f6] focus:outline-none transition-all`}
-                />
-              </div>
-
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleCheckDuplicate}
-                disabled={isCheckingUsername || !username.trim()}
-                className="h-11 px-3 rounded-[14px] text-[12px] font-semibold text-[#3182f6] border-[#d1e6ff] bg-[#f0f6ff] hover:bg-[#e8f3ff] active:scale-95 transition-all shrink-0 cursor-pointer"
-              >
-                {isCheckingUsername ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  "중복 확인"
-                )}
-              </Button>
+              </label>
+              <span className="text-[11px] text-[#8b95a1]">개인 링크 주소</span>
             </div>
 
-            {/* 중복 체크 상태 피드백 메시지 */}
-            {usernameStatus.checked && (
-              <div
-                className={`flex items-center gap-1.5 text-[12px] mt-0.5 ${
-                  usernameStatus.valid ? "text-[#3182f6]" : "text-[#f04452]"
-                }`}
-              >
-                {usernameStatus.valid ? (
-                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                ) : (
-                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                )}
-                <span>{usernameStatus.message}</span>
-              </div>
-            )}
+            <div className="relative flex items-center">
+              <span className="absolute left-3.5 text-[#8b95a1] text-[14px] font-medium select-none">
+                @
+              </span>
+              <input
+                type="text"
+                value={username}
+                readOnly
+                disabled
+                className="w-full h-11 pl-8 pr-3.5 rounded-[14px] border border-[#e5e8eb] bg-[#f2f4f6] text-[14px] text-[#6b7684] cursor-not-allowed select-none focus:outline-none"
+              />
+            </div>
+            <p className="text-[11px] text-[#8b95a1]">
+              아이디(username)는 고유 주소로 사용되어 수정할 수 없습니다.
+            </p>
           </div>
 
           {/* 3. 소개글 (bio) */}

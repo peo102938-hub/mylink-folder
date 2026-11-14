@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Share2, Loader2, User } from "lucide-react";
+import { Share2, Loader2, User, BarChart2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { copyToClipboard } from "@/lib/clipboard";
 import { useAuth } from "@/context/AuthContext";
@@ -96,6 +96,16 @@ export function TopAppBar({
           </div>
         ) : user ? (
           <>
+            {/* 통계 페이지 이동 버튼 */}
+            <Link
+              href="/stats"
+              className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-full text-[12px] font-semibold text-[#4e5968] bg-[#f2f4f6] hover:bg-[#e5e8eb] hover:text-[#191f28] active:scale-95 transition-all cursor-pointer border border-[#e5e8eb]"
+              title="링크 클릭 통계 분석"
+            >
+              <BarChart2 className="w-3.5 h-3.5 text-[#3182f6]" />
+              <span>통계</span>
+            </Link>
+
             {/* 개인별 페이지 이동 버튼 */}
             <Link
               href={`/${encodeURIComponent(profileUsername ?? displayName)}`}

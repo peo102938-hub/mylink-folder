@@ -12,6 +12,7 @@ import {
   LogOut,
   BarChart2,
   ChevronDown,
+  ChevronRight,
   Loader2,
   ExternalLink,
 } from "lucide-react";
@@ -150,22 +151,38 @@ export function ProfileDropdown({
             <ExternalLink className="w-4 h-4 text-[#8b95a1] group-hover:text-[#3182f6] transition-colors shrink-0" />
           </Link>
 
-          {/* 2. 등록된 링크 통계 요약 섹션 */}
-          <div className="my-2 p-2.5 rounded-[14px] bg-[#f0f6ff]/70 border border-[#d6e6fe] flex items-center justify-between text-[12px]">
+          {/* 2. 등록된 링크 통계 요약 섹션 (클릭 시 /stats 페이지로 이동) */}
+          <Link
+            href="/stats"
+            onClick={() => setIsOpen(false)}
+            className="my-2 p-2.5 rounded-[14px] bg-[#f0f6ff]/70 hover:bg-[#e8f3ff] border border-[#d6e6fe] flex items-center justify-between text-[12px] transition-colors cursor-pointer group"
+            title="통계 분석 페이지로 이동"
+          >
             <div className="flex items-center gap-1.5 text-[#1b64da] font-medium">
               <BarChart2 className="w-3.5 h-3.5" />
-              <span>등록된 링크</span>
+              <span className="font-semibold">링크 통계 분석</span>
             </div>
-            <div className="font-semibold text-[#191f28]">
+            <div className="flex items-center gap-1 text-[#3182f6] font-semibold text-[11px]">
               <span>총 {totalLinks}개</span>
-              <span className="text-[11px] font-normal text-[#6b7684] ml-1">
-                (공개 {activeLinks} / 비공개 {inactiveLinks})
-              </span>
+              <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
             </div>
-          </div>
+          </Link>
 
           {/* 3. 편의 액션 메뉴 항목들 */}
           <div className="flex flex-col gap-0.5 py-1">
+            {/* 통계 페이지 바로가기 */}
+            <Link
+              href="/stats"
+              onClick={() => setIsOpen(false)}
+              className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-[12px] text-[13px] font-semibold text-[#191f28] hover:bg-[#f2f4f6] active:scale-[0.99] transition-all cursor-pointer text-left"
+            >
+              <BarChart2 className="w-4 h-4 text-[#3182f6]" />
+              <div className="flex items-center justify-between flex-1">
+                <span>링크 클릭 통계</span>
+                <span className="text-[11px] font-medium text-[#3182f6] bg-[#e8f3ff] px-1.5 py-0.5 rounded-[6px]">/stats</span>
+              </div>
+            </Link>
+
             {/* 개인별 페이지 바로가기 */}
             <Link
               href={profileHref}
