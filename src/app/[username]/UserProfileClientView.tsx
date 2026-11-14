@@ -20,6 +20,7 @@ import {
   addLinkToFirestore,
   updateLinkInFirestore,
   deleteLinkFromFirestore,
+  recordLinkClick,
   saveUserProfile,
 } from "@/lib/firestoreLinks";
 import initialMockProfile from "@/data/mock-profile.json";
@@ -81,6 +82,12 @@ export function UserProfileClientView({
     await deleteLinkFromFirestore(userProfile.uid, id);
   };
 
+  // 링크 클릭 핸들러: 방문자가 클릭할 때만 카운트 저장 (편집 모드/소유자일 때는 제외)
+  const handleLinkClick = async (linkId: string) => {
+    if (isOwner) return;
+    await recordLinkClick(userProfile.uid, linkId);
+  };
+
   const displayName = profile.displayName || "사용자";
   const username = profile.username || "";
   const role = profile.role || "Creator";
@@ -140,12 +147,15 @@ export function UserProfileClientView({
           onShowToast={showToast}
         />
 
-        {/* users/{userId}/links 링크 카드 리스트 (소유자면 추가/수정/삭제 가능, 방문자면 읽기 전용) */}
+        {/* users/{userId}/links 링크 카드 리스트 (소유자면 추가/수정/삭제 가능, 방문자면 읽기 전용, 개인별 페이지에서는 조회수 비노출) */}
         <LinkCardList
           links={links}
           onAddLink={isOwner ? handleAddLink : undefined}
           onUpdateLink={isOwner ? handleUpdateLink : undefined}
           onDeleteLink={isOwner ? handleDeleteLink : undefined}
+          onLinkClick={handleLinkClick}
+          showClickCount={false}
+          isEditable={isOwner}
           onShowToast={showToast}
         />
 

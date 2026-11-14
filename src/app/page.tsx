@@ -71,12 +71,13 @@ export default function Home() {
             onShowToast={showToast}
           />
 
-          {/* users/{user.uid}/links 주요 링크 카드 리스트 (추가, 수정, 삭제) */}
+          {/* users/{user.uid}/links 주요 링크 카드 리스트 (편집 모드: 클릭 시 조회수 미증가, 관리자 화면에서는 클릭 수 확인 가능) */}
           <LinkCardList
             links={data.links}
             onAddLink={addLink}
             onUpdateLink={updateLink}
             onDeleteLink={deleteLink}
+            isEditable={true}
             onShowToast={showToast}
           />
 

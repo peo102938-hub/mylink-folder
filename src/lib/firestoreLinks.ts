@@ -9,6 +9,8 @@ import {
   setDoc,
   getDoc,
   deleteDoc,
+  updateDoc,
+  increment,
   serverTimestamp,
   getDocs,
   onSnapshot,
@@ -27,6 +29,8 @@ export interface FirestoreLinkDoc {
   icon?: string;
   badge?: string | null;
   isActive?: boolean;
+  clickCount?: number;
+  clicks?: number;
   createdAt?: Timestamp | FieldValue | null;
   updatedAt?: Timestamp | FieldValue | null;
 }
@@ -474,6 +478,12 @@ function parseFirestoreLinksSnapshot(snapshot: QuerySnapshot<DocumentData>): Lin
       icon: data.icon || "🔗",
       badge: data.badge || null,
       isActive: data.isActive !== undefined ? data.isActive : true,
+      clickCount:
+        typeof data.clickCount === "number"
+          ? data.clickCount
+          : typeof data.clicks === "number"
+          ? data.clicks
+          : 0,
       createdAt: createdAtStr,
       updatedAt: updatedAtStr,
       _createdAtMs: createdAtMs,
@@ -502,6 +512,7 @@ export async function addLinkToFirestore(
     icon: newLink.icon?.trim() || "🔗",
     badge: newLink.badge?.trim() || null,
     isActive: newLink.isActive !== undefined ? newLink.isActive : true,
+    clickCount: newLink.clickCount ?? 0,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };
@@ -516,6 +527,7 @@ export async function addLinkToFirestore(
     icon: docPayload.icon || "🔗",
     badge: docPayload.badge || null,
     isActive: docPayload.isActive ?? true,
+    clickCount: docPayload.clickCount ?? 0,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -605,8 +617,28 @@ export async function updateLinkInFirestore(
   if (updatedFields.icon !== undefined) payload.icon = updatedFields.icon.trim();
   if (updatedFields.badge !== undefined) payload.badge = updatedFields.badge?.trim() || null;
   if (updatedFields.isActive !== undefined) payload.isActive = updatedFields.isActive;
+  if (updatedFields.clickCount !== undefined) payload.clickCount = updatedFields.clickCount;
 
   await setDoc(docRef, payload, { merge: true });
+}
+
+/**
+ * 링크 클릭 수 원자적(atomic) 1 증가 저장
+ */
+export async function recordLinkClick(uid: string, linkId: string): Promise<void> {
+  if (!uid || !linkId) return;
+  try {
+    const docRef = doc(db, "users", uid, "links", linkId);
+    await setDoc(
+      docRef,
+      {
+        clickCount: increment(1),
+      },
+      { merge: true }
+    );
+  } catch (error) {
+    console.warn(`recordLinkClick failed for link ${linkId} (uid: ${uid}):`, error);
+  }
 }
 
 /**

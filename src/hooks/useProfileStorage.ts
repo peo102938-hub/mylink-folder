@@ -12,6 +12,7 @@ import {
   getUserProfile,
   saveUserProfile,
   extractEmailPrefix,
+  recordLinkClick,
 } from "@/lib/firestoreLinks";
 import { useAuth } from "@/context/AuthContext";
 
@@ -205,6 +206,23 @@ export function useProfileStorage() {
     await deleteLinkMutation.mutateAsync(id);
   };
 
+  // 링크 클릭 수 증가 (낙관적 캐시 갱신 및 Firestore 저장)
+  const recordClick = useCallback(
+    async (linkId: string) => {
+      if (!user?.uid) return;
+      queryClient.setQueryData<LinkItem[]>(["userLinks", user.uid], (old) => {
+        if (!old) return old;
+        return old.map((item) =>
+          item.id === linkId
+            ? { ...item, clickCount: (item.clickCount ?? 0) + 1 }
+            : item
+        );
+      });
+      await recordLinkClick(user.uid, linkId);
+    },
+    [user?.uid, queryClient]
+  );
+
   const isLoading =
     authLoading ||
     (!!user && (profileQuery.isLoading || linksQuery.isLoading));
@@ -218,6 +236,7 @@ export function useProfileStorage() {
     addLink,
     updateLink,
     deleteLink,
+    recordClick,
     refreshLinks,
   };
 }

@@ -6,6 +6,7 @@ export interface LinkItem {
   icon: string;
   badge?: string | null;
   isActive: boolean;
+  clickCount?: number;
   createdAt?: string | null;
   updatedAt?: string | null;
 }

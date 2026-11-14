@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { LinkItem } from "@/types/profile";
-import { ChevronRight, Plus, Link2, Pencil, Trash2, Clock } from "lucide-react";
+import { ChevronRight, Plus, Link2, Pencil, Trash2, Clock, MousePointerClick } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatUpdatedAt } from "@/lib/utils";
@@ -15,6 +15,9 @@ interface LinkCardListProps {
   onAddLink?: (link: Omit<LinkItem, "id">) => Promise<LinkItem | void> | void;
   onUpdateLink?: (id: string, updated: Partial<LinkItem>) => Promise<void>;
   onDeleteLink?: (id: string) => Promise<void>;
+  onLinkClick?: (id: string) => void;
+  showClickCount?: boolean;
+  isEditable?: boolean;
   onShowToast?: (message: string) => void;
 }
 
@@ -23,10 +26,17 @@ export function LinkCardList({
   onAddLink,
   onUpdateLink,
   onDeleteLink,
+  onLinkClick,
+  showClickCount = true,
+  isEditable,
   onShowToast = () => {},
 }: LinkCardListProps) {
+  // 편집 모드 여부: 명시적 prop 또는 링크 수정/삭제 핸들러가 있을 때
+  const isEditMode = isEditable ?? Boolean(onUpdateLink || onDeleteLink);
+
   // Only display active links per PRD
   const activeLinks = links.filter((link) => link.isActive);
+  const totalClicks = activeLinks.reduce((sum, link) => sum + (link.clickCount ?? 0), 0);
 
   // 현재 인라인 편집 중인 링크 ID 상태
   const [editingLinkId, setEditingLinkId] = useState<string | null>(null);
@@ -34,17 +44,29 @@ export function LinkCardList({
   // 현재 삭제 확인 모달에 열려있는 대상 링크
   const [deletingLink, setDeletingLink] = useState<LinkItem | null>(null);
 
+  // 링크 클릭 핸들러: 편집 모드일 때는 조회수가 오르지 않음
+  const handleLinkClick = (linkId: string) => {
+    if (isEditMode) return;
+    onLinkClick?.(linkId);
+  };
+
   return (
     <section className="flex flex-col gap-3">
       {/* Section Header */}
       <div className="flex items-center justify-between px-1">
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 flex-wrap">
           <h2 className="text-[12px] font-bold text-[#8b95a1] uppercase tracking-wider">
             Links
           </h2>
           <span className="text-[12px] text-[#8b95a1] font-medium">
             {activeLinks.length}개
           </span>
+          {showClickCount && totalClicks > 0 && (
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#3182f6] bg-[#e8f3ff] px-2 py-0.5 rounded-full">
+              <MousePointerClick className="w-3 h-3 shrink-0" />
+              <span>{totalClicks.toLocaleString()}</span>
+            </span>
+          )}
         </div>
 
         {onAddLink && (
@@ -108,6 +130,7 @@ export function LinkCardList({
                   href={link.url}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={() => handleLinkClick(link.id)}
                   className="flex items-center gap-3.5 min-w-0 flex-1 pr-2 cursor-pointer active:opacity-80 transition-opacity"
                   aria-label={`${link.title} 바로가기`}
                 >
@@ -138,11 +161,21 @@ export function LinkCardList({
                         {link.subtitle}
                       </p>
                     )}
-                    {link.updatedAt && (
-                      <p className="text-[11px] text-[#8b95a1] flex items-center gap-1 mt-1">
-                        <Clock className="w-3 h-3 stroke-[2] shrink-0" />
-                        <span>수정: {formatUpdatedAt(link.updatedAt)}</span>
-                      </p>
+                    {(showClickCount || link.updatedAt) && (
+                      <div className="flex items-center gap-2 text-[11px] text-[#8b95a1] mt-1 flex-wrap">
+                        {showClickCount && (
+                          <span className="inline-flex items-center gap-1 font-medium text-[#4e5968] bg-[#f2f4f6] px-1.5 py-0.5 rounded-[6px]">
+                            <MousePointerClick className="w-3 h-3 text-[#3182f6] shrink-0" />
+                            <span>{(link.clickCount ?? 0).toLocaleString()}</span>
+                          </span>
+                        )}
+                        {link.updatedAt && (
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3 stroke-[2] shrink-0" />
+                            <span>수정: {formatUpdatedAt(link.updatedAt)}</span>
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
                 </a>
@@ -177,6 +210,7 @@ export function LinkCardList({
                     href={link.url}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() => handleLinkClick(link.id)}
                     className="p-1.5 text-[#b0b8c1] hover:text-[#3182f6] transition-colors"
                     aria-label={`${link.title} 바로가기`}
                   >

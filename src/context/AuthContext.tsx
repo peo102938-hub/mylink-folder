@@ -99,7 +99,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
       return loggedInUser;
-    } catch (error) {
+    } catch (error: unknown) {
+      const authError = error as { code?: string; message?: string };
+      // 사용자가 팝업 창을 닫아 취소한 경우 (auth/popup-closed-by-user 또는 auth/cancelled-popup-request)
+      if (
+        authError?.code === "auth/popup-closed-by-user" ||
+        authError?.code === "auth/cancelled-popup-request"
+      ) {
+        return null;
+      }
       console.error("Google sign-in error:", error);
       throw error;
     }

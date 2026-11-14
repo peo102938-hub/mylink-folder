@@ -29,10 +29,18 @@ service cloud.firestore {
       return data.keys().hasAll(['title', 'url'])
           && data.title is string && data.title.size() > 0 && data.title.size() <= 200
           && data.url   is string && data.url.size()   > 0 && data.url.size()   <= 2048
-          && (!('subtitle' in data) || data.subtitle is string)
-          && (!('icon'     in data) || data.icon     is string)
-          && (!('badge'    in data) || data.badge    == null || data.badge is string)
-          && (!('isActive' in data) || data.isActive is bool);
+          && (!('subtitle'   in data) || data.subtitle is string)
+          && (!('icon'       in data) || data.icon     is string)
+          && (!('badge'      in data) || data.badge    == null || data.badge is string)
+          && (!('isActive'   in data) || data.isActive is bool)
+          && (!('clickCount' in data) || data.clickCount is number)
+          && (!('clicks'     in data) || data.clicks is number);
+    }
+
+    /** 링크 클릭 카운트 증가 허용 검사 (방문자 클릭 기록용) */
+    function isClickCountIncrement() {
+      let diff = request.resource.data.diff(resource.data);
+      return diff.affectedKeys().hasOnly(['clickCount']) || diff.affectedKeys().hasOnly(['clicks']);
     }
 
     /** 프로필 문서 필드 유효성 검사 */
@@ -79,9 +87,9 @@ service cloud.firestore {
         allow create: if isOwner(userId)
                       && isValidLinkData();
 
-        // 수정: 본인만 가능 + 필드 검증
-        allow update: if isOwner(userId)
-                      && isValidLinkData();
+        // 수정: 본인 수정(전체 필드) 또는 누구나 클릭 카운트 증가 허용
+        allow update: if (isOwner(userId) && isValidLinkData())
+                      || isClickCountIncrement();
 
         // 삭제: 본인만 가능
         allow delete: if isOwner(userId);

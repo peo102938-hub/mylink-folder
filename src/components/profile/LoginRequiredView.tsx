@@ -23,9 +23,12 @@ export function LoginRequiredView({ onShowToast }: LoginRequiredViewProps) {
         onShowToast(`${user.displayName || "사용자"}님 환영합니다!`);
       }
     } catch (error: unknown) {
-      console.error("Login failed:", error);
       const firebaseError = error as { code?: string };
-      if (firebaseError?.code !== "auth/popup-closed-by-user") {
+      if (
+        firebaseError?.code !== "auth/popup-closed-by-user" &&
+        firebaseError?.code !== "auth/cancelled-popup-request"
+      ) {
+        console.error("Login failed:", error);
         onShowToast("로그인에 실패했습니다. 다시 시도해주세요.");
       }
     } finally {
