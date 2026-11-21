@@ -2,6 +2,8 @@
 
 > Next.js, TypeScript, Tailwind CSS 기반의 깔끔하고 모던한 개인 프로필 및 링크 인 바이오(Link in Bio) 웹 애플리케이션
 
+사이트 링크: https://mylink-jade.vercel.app/
+
 ![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
 ![React](https://img.shields.io/badge/React-19-blue?logo=react)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)
