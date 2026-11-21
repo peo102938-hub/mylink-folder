@@ -76,109 +76,111 @@ export function TopAppBar({
   };
 
   return (
-    <header className="sticky top-0 z-30 w-full max-w-lg bg-[#f9fafb]/90 backdrop-blur-md border-b border-[#e5e8eb] px-4 h-14 flex items-center justify-between transition-all">
-      {/* 좌측 로고 / 홈 이동 링크 */}
-      <Link
-        href="/"
-        className="flex items-center gap-1.5 min-w-0 hover:opacity-80 active:scale-95 transition-all"
-        title="홈으로 이동"
-      >
-        <span className="text-[17px] font-bold tracking-tight text-[#191f28] truncate">
-          마이링크
-        </span>
-      </Link>
+    <header className="sticky top-0 z-30 w-full bg-[#f9fafb]/90 backdrop-blur-md border-b border-[#e5e8eb] transition-all">
+      <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+        {/* 좌측 로고 / 홈 이동 링크 */}
+        <Link
+          href="/"
+          className="flex items-center gap-1.5 min-w-0 hover:opacity-80 active:scale-95 transition-all"
+          title="홈으로 이동"
+        >
+          <span className="text-[17px] font-bold tracking-tight text-[#191f28] truncate">
+            마이링크
+          </span>
+        </Link>
 
-      {/* 우측 액션 버튼들 (개인별 페이지 이동 + 프로필 드롭다운 or 구글 로그인 + 공유) */}
-      <div className="flex items-center gap-1.5 shrink-0">
-        {loading ? (
-          <div className="w-8 h-8 flex items-center justify-center">
-            <Loader2 className="w-4 h-4 animate-spin text-[#8b95a1]" />
-          </div>
-        ) : user ? (
-          <>
-            {/* 통계 페이지 이동 버튼 */}
-            <Link
-              href="/stats"
-              className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-full text-[12px] font-semibold text-[#4e5968] bg-[#f2f4f6] hover:bg-[#e5e8eb] hover:text-[#191f28] active:scale-95 transition-all cursor-pointer border border-[#e5e8eb]"
-              title="링크 클릭 통계 분석"
+        {/* 우측 액션 버튼들 (개인별 페이지 이동 + 프로필 드롭다운 or 구글 로그인 + 공유) */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {loading ? (
+            <div className="w-8 h-8 flex items-center justify-center">
+              <Loader2 className="w-4 h-4 animate-spin text-[#8b95a1]" />
+            </div>
+          ) : user ? (
+            <>
+              {/* 통계 페이지 이동 버튼 */}
+              <Link
+                href="/stats"
+                className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-full text-[12px] font-semibold text-[#4e5968] bg-[#f2f4f6] hover:bg-[#e5e8eb] hover:text-[#191f28] active:scale-95 transition-all cursor-pointer border border-[#e5e8eb]"
+                title="링크 클릭 통계 분석"
+              >
+                <BarChart2 className="w-3.5 h-3.5 text-[#3182f6]" />
+                <span>통계</span>
+              </Link>
+
+              {/* 개인별 페이지 이동 버튼 */}
+              <Link
+                href={`/${encodeURIComponent(profileUsername ?? displayName)}`}
+                className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-full text-[12px] font-semibold text-[#3182f6] bg-[#e8f3ff] hover:bg-[#d6e8ff] active:scale-95 transition-all cursor-pointer border border-[#cce4ff]"
+                title={`${displayName}님의 개인 페이지로 이동`}
+              >
+                <User className="w-3.5 h-3.5" />
+                <span>내 페이지</span>
+              </Link>
+
+              {/* 로그인 상태: 추천 레이아웃 적용된 프로필 드롭다운 */}
+              <ProfileDropdown
+                user={user}
+                profileData={profileData ?? null}
+                onAddLinkClick={() => {
+                  if (onAddLinkClick) onAddLinkClick();
+                }}
+                onEditProfileClick={() => {
+                  if (onEditProfileClick) onEditProfileClick();
+                }}
+                onCopyLink={handleShare}
+                onLogout={handleLogout}
+                isLoggingOut={isAuthOperating}
+              />
+            </>
+          ) : (
+            /* 비로그인 상태: 구글 로그인 버튼 */
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={isAuthOperating}
+              onClick={handleGoogleLogin}
+              className="rounded-full text-[13px] font-semibold text-[#333d4b] bg-white border-[#d1d6db] hover:bg-[#f2f4f6] hover:border-[#b0b8c1] active:scale-95 transition-all cursor-pointer h-8 px-3 flex items-center gap-1.5 shadow-xs"
             >
-              <BarChart2 className="w-3.5 h-3.5 text-[#3182f6]" />
-              <span>통계</span>
-            </Link>
+              {isAuthOperating ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-[#3182f6]" />
+              ) : (
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
+                  <path
+                    fill="#4285F4"
+                    d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.17 0 9.97 0 12s.45 3.83 1.25 5.42l4.03-3.15z"
+                  />
+                  <path
+                    fill="#EA4335"
+                    d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
+                  />
+                </svg>
+              )}
+              <span>Google 로그인</span>
+            </Button>
+          )}
 
-            {/* 개인별 페이지 이동 버튼 */}
-            <Link
-              href={`/${encodeURIComponent(profileUsername ?? displayName)}`}
-              className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-full text-[12px] font-semibold text-[#3182f6] bg-[#e8f3ff] hover:bg-[#d6e8ff] active:scale-95 transition-all cursor-pointer border border-[#cce4ff]"
-              title={`${displayName}님의 개인 페이지로 이동`}
-            >
-              <User className="w-3.5 h-3.5" />
-              <span>내 페이지</span>
-            </Link>
-
-            {/* 로그인 상태: 추천 레이아웃 적용된 프로필 드롭다운 */}
-            <ProfileDropdown
-              user={user}
-              profileData={profileData ?? null}
-              onAddLinkClick={() => {
-                if (onAddLinkClick) onAddLinkClick();
-              }}
-              onEditProfileClick={() => {
-                if (onEditProfileClick) onEditProfileClick();
-              }}
-              onCopyLink={handleShare}
-              onLogout={handleLogout}
-              isLoggingOut={isAuthOperating}
-            />
-          </>
-        ) : (
-          /* 비로그인 상태: 구글 로그인 버튼 */
+          {/* 공유 버튼 */}
           <Button
             type="button"
-            variant="outline"
+            variant="ghost"
             size="sm"
-            disabled={isAuthOperating}
-            onClick={handleGoogleLogin}
-            className="rounded-full text-[13px] font-semibold text-[#333d4b] bg-white border-[#d1d6db] hover:bg-[#f2f4f6] hover:border-[#b0b8c1] active:scale-95 transition-all cursor-pointer h-8 px-3 flex items-center gap-1.5 shadow-xs"
+            onClick={handleShare}
+            className="rounded-full text-[13px] font-semibold text-[#4e5968] hover:text-[#191f28] hover:bg-[#f2f4f6] active:scale-95 transition-all cursor-pointer h-8 px-2.5"
+            aria-label="링크 공유하기"
+            title="페이지 링크 복사"
           >
-            {isAuthOperating ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-[#3182f6]" />
-            ) : (
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
-                <path
-                  fill="#4285F4"
-                  d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.17 0 9.97 0 12s.45 3.83 1.25 5.42l4.03-3.15z"
-                />
-                <path
-                  fill="#EA4335"
-                  d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
-                />
-              </svg>
-            )}
-            <span>Google 로그인</span>
+            <Share2 className="w-4 h-4" />
           </Button>
-        )}
-
-        {/* 공유 버튼 */}
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={handleShare}
-          className="rounded-full text-[13px] font-semibold text-[#4e5968] hover:text-[#191f28] hover:bg-[#f2f4f6] active:scale-95 transition-all cursor-pointer h-8 px-2.5"
-          aria-label="링크 공유하기"
-          title="페이지 링크 복사"
-        >
-          <Share2 className="w-4 h-4" />
-        </Button>
+        </div>
       </div>
     </header>
   );
