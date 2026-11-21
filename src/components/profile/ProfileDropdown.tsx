@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter, usePathname } from "next/navigation";
 import { User as FirebaseUser } from "firebase/auth";
 import {
   User,
@@ -38,7 +39,14 @@ export function ProfileDropdown({
   isLoggingOut,
 }: ProfileDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isNavigatingProfile, setIsNavigatingProfile] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    setIsNavigatingProfile(false);
+  }, [pathname]);
 
   // 바깥 영역 클릭 시 닫기
   useEffect(() => {
@@ -111,10 +119,16 @@ export function ProfileDropdown({
       {isOpen && (
         <div className="absolute right-0 mt-2 w-80 rounded-[22px] bg-white border border-[#e5e8eb] shadow-[0_12px_40px_rgba(25,31,40,0.12)] p-2 z-50 animate-in fade-in zoom-in-95 duration-150 origin-top-right">
           {/* 1. 계정 및 사용자 식별 정보 헤더 (클릭 시 개인별 페이지로 이동) */}
-          <Link
-            href={profileHref}
-            onClick={() => setIsOpen(false)}
-            className="p-3 bg-[#f9fafb] hover:bg-[#f2f4f6] rounded-[16px] border border-[#f2f4f6] flex items-center gap-3 transition-colors cursor-pointer group"
+          <button
+            type="button"
+            disabled={isNavigatingProfile}
+            onClick={() => {
+              if (isNavigatingProfile) return;
+              setIsNavigatingProfile(true);
+              setIsOpen(false);
+              router.push(profileHref);
+            }}
+            className="w-full text-left p-3 bg-[#f9fafb] hover:bg-[#f2f4f6] rounded-[16px] border border-[#f2f4f6] flex items-center gap-3 transition-colors cursor-pointer group disabled:opacity-75"
             title={`${displayName}님의 개인 페이지로 이동`}
           >
             {photoUrl ? (
@@ -148,8 +162,12 @@ export function ProfileDropdown({
                 {email}
               </p>
             </div>
-            <ExternalLink className="w-4 h-4 text-[#8b95a1] group-hover:text-[#3182f6] transition-colors shrink-0" />
-          </Link>
+            {isNavigatingProfile ? (
+              <Loader2 className="w-4 h-4 text-[#3182f6] animate-spin shrink-0" />
+            ) : (
+              <ExternalLink className="w-4 h-4 text-[#8b95a1] group-hover:text-[#3182f6] transition-colors shrink-0" />
+            )}
+          </button>
 
           {/* 2. 등록된 링크 통계 요약 섹션 (클릭 시 /stats 페이지로 이동) */}
           <Link

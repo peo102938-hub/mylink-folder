@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter, usePathname } from "next/navigation";
 import { Share2, Loader2, User, BarChart2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { copyToClipboard } from "@/lib/clipboard";
@@ -28,6 +29,38 @@ export function TopAppBar({
   const profileUsername = profileData?.username || null;
   const { user, loading, signInWithGoogle, logout } = useAuth();
   const [isAuthOperating, setIsAuthOperating] = useState(false);
+  const [isNavigatingToMyPage, setIsNavigatingToMyPage] = useState(false);
+  const [isNavigatingToStats, setIsNavigatingToStats] = useState(false);
+
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // 경로 이동 완료 시 로딩 상태 자동 해제
+  useEffect(() => {
+    setIsNavigatingToMyPage(false);
+    setIsNavigatingToStats(false);
+  }, [pathname]);
+
+  const handleMyPageNavigation = () => {
+    if (isNavigatingToMyPage) return;
+    const targetUrl = `/${encodeURIComponent(profileUsername ?? displayName)}`;
+    if (pathname === targetUrl) {
+      onShowToast("현재 내 페이지입니다.");
+      return;
+    }
+    setIsNavigatingToMyPage(true);
+    router.push(targetUrl);
+  };
+
+  const handleStatsNavigation = () => {
+    if (isNavigatingToStats) return;
+    if (pathname === "/stats") {
+      onShowToast("현재 통계 페이지입니다.");
+      return;
+    }
+    setIsNavigatingToStats(true);
+    router.push("/stats");
+  };
 
   const handleShare = async () => {
     if (typeof window !== "undefined") {
@@ -98,24 +131,36 @@ export function TopAppBar({
           ) : user ? (
             <>
               {/* 통계 페이지 이동 버튼 */}
-              <Link
-                href="/stats"
-                className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-full text-[12px] font-semibold text-[#4e5968] bg-[#f2f4f6] hover:bg-[#e5e8eb] hover:text-[#191f28] active:scale-95 transition-all cursor-pointer border border-[#e5e8eb]"
+              <button
+                type="button"
+                onClick={handleStatsNavigation}
+                disabled={isNavigatingToStats}
+                className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-full text-[12px] font-semibold text-[#4e5968] bg-[#f2f4f6] hover:bg-[#e5e8eb] hover:text-[#191f28] active:scale-95 transition-all cursor-pointer border border-[#e5e8eb] disabled:opacity-70 disabled:cursor-not-allowed"
                 title="링크 클릭 통계 분석"
               >
-                <BarChart2 className="w-3.5 h-3.5 text-[#3182f6]" />
+                {isNavigatingToStats ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-[#3182f6]" />
+                ) : (
+                  <BarChart2 className="w-3.5 h-3.5 text-[#3182f6]" />
+                )}
                 <span>통계</span>
-              </Link>
+              </button>
 
-              {/* 개인별 페이지 이동 버튼 */}
-              <Link
-                href={`/${encodeURIComponent(profileUsername ?? displayName)}`}
-                className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-full text-[12px] font-semibold text-[#3182f6] bg-[#e8f3ff] hover:bg-[#d6e8ff] active:scale-95 transition-all cursor-pointer border border-[#cce4ff]"
+              {/* 개인별 페이지 이동 버튼 (로딩 인디케이터 적용) */}
+              <button
+                type="button"
+                onClick={handleMyPageNavigation}
+                disabled={isNavigatingToMyPage}
+                className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-full text-[12px] font-semibold text-[#3182f6] bg-[#e8f3ff] hover:bg-[#d6e8ff] active:scale-95 transition-all cursor-pointer border border-[#cce4ff] disabled:opacity-80 disabled:cursor-not-allowed"
                 title={`${displayName}님의 개인 페이지로 이동`}
               >
-                <User className="w-3.5 h-3.5" />
-                <span>내 페이지</span>
-              </Link>
+                {isNavigatingToMyPage ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-[#3182f6]" />
+                ) : (
+                  <User className="w-3.5 h-3.5" />
+                )}
+                <span>{isNavigatingToMyPage ? "이동 중..." : "내 페이지"}</span>
+              </button>
 
               {/* 로그인 상태: 추천 레이아웃 적용된 프로필 드롭다운 */}
               <ProfileDropdown

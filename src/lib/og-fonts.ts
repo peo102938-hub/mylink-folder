@@ -8,6 +8,29 @@ const FONT_URL_BOLD =
 const FONT_URL_MEDIUM =
   "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/static/woff/Pretendard-Medium.woff";
 
+/**
+ * 타임아웃이 포함된 fetch 헬퍼
+ * 카카오/페이스북 크롤러는 2~3초 내 응답이 없으면 엑박 처리하므로
+ * 외부 CDN이 지연되면 즉시 시스템 폰트로 폴백합니다.
+ */
+async function fetchWithTimeout(url: string, timeoutMs = 1500): Promise<ArrayBuffer | null> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      cache: "force-cache",
+    });
+    clearTimeout(timeoutId);
+    if (!res.ok) return null;
+    return await res.arrayBuffer();
+  } catch {
+    clearTimeout(timeoutId);
+    return null;
+  }
+}
+
 export async function getOgFonts() {
   const fontConfigs: Array<{
     name: string;
@@ -18,10 +41,7 @@ export async function getOgFonts() {
 
   try {
     if (!cachedBold) {
-      const res = await fetch(FONT_URL_BOLD, { cache: "force-cache" });
-      if (res.ok) {
-        cachedBold = await res.arrayBuffer();
-      }
+      cachedBold = await fetchWithTimeout(FONT_URL_BOLD, 1500);
     }
     if (cachedBold) {
       fontConfigs.push({
@@ -33,10 +53,7 @@ export async function getOgFonts() {
     }
 
     if (!cachedMedium) {
-      const res = await fetch(FONT_URL_MEDIUM, { cache: "force-cache" });
-      if (res.ok) {
-        cachedMedium = await res.arrayBuffer();
-      }
+      cachedMedium = await fetchWithTimeout(FONT_URL_MEDIUM, 1500);
     }
     if (cachedMedium) {
       fontConfigs.push({
