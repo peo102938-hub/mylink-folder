@@ -15,8 +15,17 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000")
+  ),
   title: "마이링크 | 나만의 프로필 링크",
   description: "구글 소셜 로그인으로 간편하게 관리하는 나만의 프로필 및 링크",
+  openGraph: {
+    siteName: "마이링크",
+    type: "website",
+    locale: "ko_KR",
+  },
 };
 
 export default function RootLayout({

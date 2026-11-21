@@ -1,5 +1,6 @@
 import { getUserByUsername, getLinksFromFirestore } from "@/lib/firestoreLinks";
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { UserProfileClientView } from "./UserProfileClientView";
 
 export const dynamic = "force-dynamic";
@@ -8,6 +9,37 @@ interface PageProps {
   params: Promise<{
     username: string;
   }>;
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { username } = await params;
+  const decodedUsername = decodeURIComponent(username || "").replace(/^@/, "");
+  const userProfile = await getUserByUsername(decodedUsername);
+
+  if (!userProfile) {
+    return {
+      title: `@${decodedUsername} | 마이링크`,
+    };
+  }
+
+  const displayName = userProfile.displayName || decodedUsername;
+  const description =
+    userProfile.bio || `${displayName}님의 마이링크 프로필 및 추천 링크 목록입니다.`;
+
+  return {
+    title: `${displayName} (@${decodedUsername}) | 마이링크`,
+    description,
+    openGraph: {
+      title: `${displayName} (@${decodedUsername}) | 마이링크`,
+      description,
+      type: "profile",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${displayName} (@${decodedUsername}) | 마이링크`,
+      description,
+    },
+  };
 }
 
 export default async function UserProfilePage({ params }: PageProps) {
