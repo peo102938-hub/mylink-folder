@@ -18,26 +18,47 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   if (!userProfile) {
     return {
-      title: `@${decodedUsername} | 마이링크`,
+      title: `@${decodedUsername}`,
+      robots: {
+        index: false,
+        follow: false,
+      },
     };
   }
 
   const displayName = userProfile.displayName || decodedUsername;
   const description =
     userProfile.bio || `${displayName}님의 마이링크 프로필 및 추천 링크 목록입니다.`;
+  const canonicalUrl = `/${encodeURIComponent(decodedUsername)}`;
 
   return {
-    title: `${displayName} (@${decodedUsername}) | 마이링크`,
+    title: `${displayName} (@${decodedUsername})`,
     description,
+    alternates: {
+      canonical: canonicalUrl,
+    },
     openGraph: {
-      title: `${displayName} (@${decodedUsername}) | 마이링크`,
+      title: `${displayName} (@${decodedUsername})`,
       description,
+      url: canonicalUrl,
       type: "profile",
+      username: decodedUsername,
     },
     twitter: {
       card: "summary_large_image",
-      title: `${displayName} (@${decodedUsername}) | 마이링크`,
+      title: `${displayName} (@${decodedUsername})`,
       description,
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-video-preview": -1,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+      },
     },
   };
 }
